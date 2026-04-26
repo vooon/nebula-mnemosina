@@ -151,8 +151,3 @@ type RelaySnapshot struct {
 	LighthouseName string             `json:"lighthouse_name"`
 	Relays         []byte             `json:"relays"`
 }
-
-type SchemaMigration struct {
-	Version   string             `json:"version"`
-	AppliedAt pgtype.Timestamptz `json:"applied_at"`
-}
