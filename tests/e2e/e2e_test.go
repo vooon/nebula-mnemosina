@@ -15,6 +15,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vooon/nebula-mnemosina/internal/config"
+	"github.com/vooon/nebula-mnemosina/internal/model"
+	"github.com/vooon/nebula-mnemosina/internal/sshclient"
 )
 
 const (
@@ -44,6 +48,7 @@ func TestE2E(t *testing.T) {
 		waitForPodReady(t, e2eNamespace, "app=nebula-mnemosina", 120*time.Second)
 	})
 
+	ensurePeerTunnels(t)
 	apiBaseURL = startPortForward(t, e2eNamespace, mnemosinaSvc, mnemosinaHTTP)
 
 	t.Run("healthz", func(t *testing.T) {
@@ -196,6 +201,17 @@ func waitForCondition(t *testing.T, description string, timeout, interval time.D
 
 func startPortForward(t *testing.T, namespace, svcName string, remotePort int) string {
 	t.Helper()
+	address := startPortForwardAddress(t, namespace, svcName, remotePort)
+	baseURL := "http://" + address
+	waitForCondition(t, "kubectl port-forward HTTP endpoint to become reachable", 20*time.Second, 250*time.Millisecond, func() bool {
+		status, _, err := apiRequestAbsoluteNoFail(baseURL, http.MethodGet, "/healthz", nil)
+		return err == nil && status == http.StatusOK
+	})
+	return baseURL
+}
+
+func startPortForwardAddress(t *testing.T, namespace, svcName string, remotePort int) string {
+	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -232,13 +248,66 @@ func startPortForward(t *testing.T, namespace, svcName string, remotePort int) s
 		}
 	})
 
-	baseURL := fmt.Sprintf("http://127.0.0.1:%d", localPort)
+	address := fmt.Sprintf("127.0.0.1:%d", localPort)
 	waitForCondition(t, "kubectl port-forward to become reachable", 20*time.Second, 250*time.Millisecond, func() bool {
-		status, _, err := apiRequestAbsoluteNoFail(baseURL, http.MethodGet, "/healthz", nil)
-		return err == nil && status == http.StatusOK
+		conn, err := net.DialTimeout("tcp", address, time.Second)
+		if err != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
 	})
 
-	return baseURL
+	return address
+}
+
+func ensurePeerTunnels(t *testing.T) {
+	t.Helper()
+
+	address := startPortForwardAddress(t, e2eNamespace, "nebula-lh1", 4222)
+	client, err := sshclient.New(config.SSHConfig{
+		KeyFile:        "tests/e2e/generated/ssh_client_key",
+		HostKeyMode:    "insecure",
+		KnownHostsPath: "tests/e2e/generated/known_hosts",
+		Timeout:        10 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lighthouse := model.Lighthouse{Name: "lh1", User: "nebula", Address: address}
+	peerAddrs := []string{
+		"192.168.110.103",
+		"192.168.110.104",
+		"192.168.110.105",
+	}
+
+	waitForCondition(t, "peers to report to lighthouse", 60*time.Second, time.Second, func() bool {
+		for _, peerAddr := range peerAddrs {
+			result := client.Run(context.Background(), lighthouse, "query-lighthouse "+peerAddr)
+			if result.Err != nil || strings.TrimSpace(result.Output) == "null" {
+				return false
+			}
+		}
+		return true
+	})
+
+	for _, peerAddr := range peerAddrs {
+		peerAddr := peerAddr
+		waitForCondition(t, "lighthouse tunnel to "+peerAddr, 60*time.Second, time.Second, func() bool {
+			result := client.Run(context.Background(), lighthouse, "print-tunnel "+peerAddr)
+			if result.Err == nil {
+				return true
+			}
+
+			result = client.Run(context.Background(), lighthouse, "create-tunnel "+peerAddr)
+			if result.Err != nil {
+				return false
+			}
+
+			result = client.Run(context.Background(), lighthouse, "print-tunnel "+peerAddr)
+			return result.Err == nil
+		})
+	}
 }
 
 func apiRequest(t *testing.T, method, path string, body io.Reader) (int, []byte) {

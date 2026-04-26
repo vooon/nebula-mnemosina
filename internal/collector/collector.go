@@ -114,7 +114,7 @@ func (c *Collector) runRound(ctx context.Context) error {
 			continue
 		}
 		saved++
-		c.logger.Info("poll saved",
+		c.logger.Debug("poll saved",
 			"lighthouse", result.Lighthouse.Name,
 			"success", result.Success(),
 			"duration", result.Duration(),
