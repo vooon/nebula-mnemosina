@@ -136,9 +136,9 @@ func TestE2E(t *testing.T) {
 		wantTargetsByName := map[string]string{
 			"lh1":   "nebula-lh1:4280",
 			"lh2":   "nebula-lh2:4280",
-			"peer1": "192.168.110.103:4280",
-			"peer2": "192.168.110.104:4280",
-			"peer3": "192.168.110.105:4280",
+			"peer1": "192.168.111.103:4280",
+			"peer2": "192.168.111.104:4280",
+			"peer3": "192.168.111.105:4280",
 		}
 		for name, wantTarget := range wantTargetsByName {
 			target := targetsByName[name]
@@ -276,9 +276,9 @@ func ensurePeerTunnels(t *testing.T) {
 	}
 	lighthouse := model.Lighthouse{Name: "lh1", User: "nebula", Address: address}
 	peerAddrs := []string{
-		"192.168.110.103",
-		"192.168.110.104",
-		"192.168.110.105",
+		"192.168.111.103",
+		"192.168.111.104",
+		"192.168.111.105",
 	}
 
 	waitForCondition(t, "peers to report to lighthouse", 60*time.Second, time.Second, func() bool {

@@ -234,9 +234,34 @@ waits for the certificate, and pushes to:
 ${E2E_REGISTRY_DNS_NAME}/nebula-mnemosina:e2e
 ```
 
+On tenant-isolated clusters, the ingress controller may only be able to reach
+backends in its own namespace. In that case, put the temporary registry,
+Issuer, Certificate, and Ingress in the ingress namespace:
+
+```bash
+E2E_REGISTRY_NAMESPACE=tenant-root make e2e-current-registry-https
+```
+
+If the LoadBalancer IP advertised by the ingress service is not reachable from
+your workstation, but the ingress HTTPS NodePort is reachable on a node IP, set
+the registry port. The script will use a node that has an ingress controller
+endpoint:
+
+```bash
+E2E_REGISTRY_PORT=30400 \
+make e2e-current-registry-https
+```
+
+Set `E2E_REGISTRY_INGRESS_IP` only when you need to force the DNS target. For
+NodePort with `ExternalTrafficPolicy: Local`, that IP must be a node running an
+ingress controller pod.
+
 Defaults:
 
 ```text
+E2E_REGISTRY_NAMESPACE=nebula-mnemosina-e2e
+E2E_REGISTRY_PORT=443
+E2E_REGISTRY_DNS_TIMEOUT=300
 E2E_REGISTRY_INGRESS_CLASS=tenant-root
 E2E_REGISTRY_INGRESS_SERVICE_NAMESPACE=tenant-root
 E2E_REGISTRY_INGRESS_SERVICE=root-ingress-controller
