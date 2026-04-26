@@ -10,11 +10,11 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/nebula-mnemosina .
 
 FROM scratch
 
-COPY --from=build /out/nebula-mnemosina /usr/local/bin/nebula-mnemosina
+COPY --from=build /out/nebula-mnemosina /nebula-mnemosina
 COPY --chown=65532:65532 docker/rootfs/data /data
 
 USER 65532:65532
 VOLUME ["/data"]
-EXPOSE 8080
+EXPOSE 12142
 
-ENTRYPOINT ["/usr/local/bin/nebula-mnemosina"]
+ENTRYPOINT ["/nebula-mnemosina"]

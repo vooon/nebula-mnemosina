@@ -41,7 +41,7 @@ type SSHConfig struct {
 
 type HTTPConfig struct {
 	Enabled bool   `name:"enabled" default:"true" help:"Enable health and metrics HTTP server."`
-	Address string `name:"address" default:":8080" help:"HTTP listen address."`
+	Address string `name:"address" default:":12142" help:"HTTP listen address."`
 }
 
 type OTELConfig struct {
