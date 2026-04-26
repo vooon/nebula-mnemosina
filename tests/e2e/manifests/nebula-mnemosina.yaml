@@ -16,13 +16,21 @@ spec:
         app: nebula-mnemosina
     spec:
       securityContext:
-        runAsUser: 65532
-        runAsGroup: 65532
         fsGroup: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: nebula-mnemosina
           image: nebula-mnemosina:e2e
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: MNEMO_DATABASE_URL
               value: postgres://nebula_mnemosina:nebula_mnemosina@postgres:5432/nebula_mnemosina?sslmode=disable

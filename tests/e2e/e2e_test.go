@@ -45,7 +45,7 @@ func TestE2E(t *testing.T) {
 	t.Run("pods_ready", func(t *testing.T) {
 		waitForPodReady(t, e2eNamespace, "app=postgres", 120*time.Second)
 		waitForPodReady(t, e2eNamespace, "app=nebula", 120*time.Second)
-		waitForPodReady(t, e2eNamespace, "app=nebula-mnemosina", 120*time.Second)
+		waitForDeploymentAvailable(t, e2eNamespace, mnemosinaSvc, 120*time.Second)
 	})
 
 	ensurePeerTunnels(t)
@@ -184,6 +184,18 @@ func waitForPodReady(t *testing.T, namespace, labelSelector string, timeout time
 	)
 }
 
+func waitForDeploymentAvailable(t *testing.T, namespace, name string, timeout time.Duration) {
+	t.Helper()
+	kubectl(
+		t,
+		"-n", namespace,
+		"wait",
+		"--for=condition=Available",
+		"deployment/"+name,
+		"--timeout="+timeout.String(),
+	)
+}
+
 func waitForCondition(t *testing.T, description string, timeout, interval time.Duration, fn func() bool) {
 	t.Helper()
 
@@ -266,9 +278,9 @@ func ensurePeerTunnels(t *testing.T) {
 
 	address := startPortForwardAddress(t, e2eNamespace, "nebula-lh1", 4222)
 	client, err := sshclient.New(config.SSHConfig{
-		KeyFile:        "tests/e2e/generated/ssh_client_key",
+		KeyFile:        "generated/ssh_client_key",
 		HostKeyMode:    "insecure",
-		KnownHostsPath: "tests/e2e/generated/known_hosts",
+		KnownHostsPath: "generated/known_hosts",
 		Timeout:        10 * time.Second,
 	})
 	if err != nil {
