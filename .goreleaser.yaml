@@ -42,36 +42,16 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
-dockers:
-  - id: linux-amd64
+dockers_v2:
+  - id: nebula-mnemosina
     ids:
       - nebula-mnemosina
-    goos: linux
-    goarch: amd64
-    use: buildx
     dockerfile: Dockerfile.goreleaser
-    image_templates:
-      - ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}-amd64
-    build_flag_templates:
-      - --platform=linux/amd64
-  - id: linux-arm64
-    ids:
-      - nebula-mnemosina
-    goos: linux
-    goarch: arm64
-    use: buildx
-    dockerfile: Dockerfile.goreleaser
-    image_templates:
-      - ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}-arm64
-    build_flag_templates:
-      - --platform=linux/arm64
-
-docker_manifests:
-  - name_template: ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}
-    image_templates:
-      - ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}-amd64
-      - ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}-arm64
-  - name_template: ghcr.io/vooon/nebula-mnemosina:latest
-    image_templates:
-      - ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}-amd64
-      - ghcr.io/vooon/nebula-mnemosina:{{ .Tag }}-arm64
+    images:
+      - ghcr.io/vooon/nebula-mnemosina
+    tags:
+      - "{{ .Tag }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
