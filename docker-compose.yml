@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg17
+    environment:
+      POSTGRES_DB: nebula_mnemosina
+      POSTGRES_USER: nebula_mnemosina
+      POSTGRES_PASSWORD: nebula_mnemosina
+    volumes:
+      - nebula-mnemosina-postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nebula_mnemosina -d nebula_mnemosina"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nebula-mnemosina:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NEBULA_MNEMOSINA_DATABASE_URL: postgres://nebula_mnemosina:nebula_mnemosina@postgres:5432/nebula_mnemosina?sslmode=disable
+      NEBULA_MNEMOSINA_DATABASE_ENABLE_TIMESCALE: "true"
+      NEBULA_MNEMOSINA_LIGHTHOUSES: lh1=nebula@192.168.110.1:4222,lh2=nebula@192.168.110.2:4222,lh3=nebula@192.168.110.3:4222
+      NEBULA_MNEMOSINA_SSH_KEY_FILE: /run/secrets/nebula_ssh_key
+      NEBULA_MNEMOSINA_SSH_KNOWN_HOSTS_PATH: /data/known_hosts
+      NEBULA_MNEMOSINA_SSH_HOST_KEY_MODE: accept-new
+      NEBULA_MNEMOSINA_POLL_INTERVAL: 30s
+      NEBULA_MNEMOSINA_HTTP_ADDRESS: :8080
+    volumes:
+      - nebula-mnemosina-data:/data
+    secrets:
+      - nebula_ssh_key
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["grafana"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - nebula-mnemosina-grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+secrets:
+  nebula_ssh_key:
+    file: ./secrets/nebula_ssh_key
+
+volumes:
+  nebula-mnemosina-data:
+  nebula-mnemosina-postgres:
+  nebula-mnemosina-grafana:

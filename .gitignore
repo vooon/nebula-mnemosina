@@ -30,3 +30,12 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+.codex
+.codex/
+bin/
+dist/
+/nebula-mnemosina
+secrets/
+*.pem
+*.key
