@@ -11,22 +11,45 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
+
       - uses: sqlc-dev/setup-sqlc@v4
         with:
-          sqlc-version: "1.29.0"
+          sqlc-version: "1.31.1"
+
       - run: sqlc generate
       - run: git diff --exit-code -- internal/db
+
       - run: go test ./...
         env:
           CGO_ENABLED: "0"
+
       - run: go build ./cmd/nebula-mnemosina
         env:
           CGO_ENABLED: "0"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11
+
+      - name: go test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 7
