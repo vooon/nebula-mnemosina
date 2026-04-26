@@ -1,6 +1,7 @@
 GOCACHE ?= /tmp/nebula-mnemosina-gocache
 CGO_ENABLED ?= 0
 CONTAINER_TOOL ?= podman
+CONTAINER_PUSH_FLAGS ?=
 COMPOSE ?= podman compose
 K3D ?= k3d
 KUBECTL ?= kubectl
@@ -10,6 +11,8 @@ E2E_IMAGE ?= nebula-mnemosina:e2e
 E2E_IMAGE_PULL_POLICY ?= IfNotPresent
 E2E_NAMESPACE ?= nebula-mnemosina-e2e
 E2E_GENERATED ?= tests/e2e/generated
+E2E_REGISTRY_NODE_PORT ?= 30500
+E2E_REGISTRY_HOST ?=
 
 .PHONY: generate
 generate:
@@ -49,7 +52,7 @@ e2e-image-build:
 
 .PHONY: e2e-image-push
 e2e-image-push: e2e-image-build
-	$(CONTAINER_TOOL) push $(E2E_IMAGE)
+	$(CONTAINER_TOOL) push $(CONTAINER_PUSH_FLAGS) $(E2E_IMAGE)
 
 .PHONY: e2e-build
 e2e-build: e2e-image-build
@@ -76,6 +79,13 @@ e2e-deploy: e2e-fixtures
 	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=nebula --timeout=120s
 	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=nebula-mnemosina --timeout=120s
 
+.PHONY: e2e-registry
+e2e-registry:
+	$(KUBECTL) apply -f tests/e2e/manifests/namespace.yaml
+	$(KUBECTL) wait --for=jsonpath='{.status.phase}'=Active namespace/$(E2E_NAMESPACE) --timeout=60s
+	$(KUBECTL) apply -f tests/e2e/manifests/registry.yaml
+	$(KUBECTL) -n $(E2E_NAMESPACE) rollout status deployment/nebula-mnemosina-registry --timeout=120s
+
 .PHONY: e2e-test
 e2e-test:
 	GOCACHE=$(GOCACHE) go test -tags=e2e -v -timeout=5m -count=1 ./tests/e2e/...
@@ -96,6 +106,18 @@ e2e-current: e2e-deploy e2e-test
 
 .PHONY: e2e-current-push
 e2e-current-push: e2e-image-push e2e-current
+
+.PHONY: e2e-current-registry
+e2e-current-registry: e2e-registry
+	registry_host="$(E2E_REGISTRY_HOST)"; \
+	if [ -z "$${registry_host}" ]; then \
+		registry_host="$$( $(KUBECTL) get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' )"; \
+	fi; \
+	if [ -z "$${registry_host}" ]; then \
+		echo "E2E_REGISTRY_HOST is empty; set it to a Kubernetes node IP reachable from this machine and the Talos nodes." >&2; \
+		exit 1; \
+	fi; \
+	$(MAKE) E2E_IMAGE="$${registry_host}:$(E2E_REGISTRY_NODE_PORT)/nebula-mnemosina:e2e" E2E_IMAGE_PULL_POLICY=Always CONTAINER_PUSH_FLAGS=--tls-verify=false e2e-image-push e2e-current
 
 .PHONY: e2e-redeploy
 e2e-redeploy: e2e-build e2e-deploy e2e-test

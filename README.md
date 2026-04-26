@@ -193,6 +193,27 @@ If the target registry is already configured, `make e2e-current-push` builds,
 pushes, deploys, and tests against the current kubeconfig.
 For mutable tags, add `E2E_IMAGE_PULL_POLICY=Always`.
 
+For a local Talos cluster, you can run a disposable registry inside the E2E
+namespace and push the test image to it:
+
+```bash
+make e2e-current-registry
+```
+
+This exposes the registry as `E2E_REGISTRY_HOST:E2E_REGISTRY_NODE_PORT`, where
+`E2E_REGISTRY_HOST` defaults to the first Kubernetes node internal IP and
+`E2E_REGISTRY_NODE_PORT` defaults to `30500`. Talos still needs node-side
+registry configuration for this plain HTTP endpoint, for example:
+
+```yaml
+machine:
+  registries:
+    mirrors:
+      "192.168.61.61:30500":
+        endpoints:
+          - "http://192.168.61.61:30500"
+```
+
 Step-by-step k3d flow:
 
 ```bash
