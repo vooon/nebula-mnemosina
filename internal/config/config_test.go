@@ -49,6 +49,7 @@ func TestParseUsesShortEnvPrefix(t *testing.T) {
 	t.Setenv("MNEMO_SSH_KEY_FILE", "/run/secrets/key")
 	t.Setenv("MNEMO_DATABASE_ENABLE_TIMESCALE", "true")
 	t.Setenv("MNEMO_HTTP_ADDRESS", ":9090")
+	t.Setenv("MNEMO_PROMETHEUS_SD_PORT", "4281")
 
 	cfg, err := Parse(nil, "test")
 	if err != nil {
@@ -63,8 +64,63 @@ func TestParseUsesShortEnvPrefix(t *testing.T) {
 	if cfg.HTTP.Address != ":9090" {
 		t.Fatalf("unexpected HTTP address: %q", cfg.HTTP.Address)
 	}
+	if cfg.PrometheusSD.Port != 4281 {
+		t.Fatalf("unexpected Prometheus service discovery port: %d", cfg.PrometheusSD.Port)
+	}
 	if got := cfg.LighthouseTargets[0].Target(); got != "nebula@192.168.110.1:4222" {
 		t.Fatalf("unexpected lighthouse target: %q", got)
+	}
+}
+
+func TestParsePrometheusSDDefaults(t *testing.T) {
+	t.Setenv("MNEMO_DATABASE_URL", "postgres://example")
+	t.Setenv("MNEMO_LIGHTHOUSES", "lh=nebula@192.168.110.1:4222")
+	t.Setenv("MNEMO_SSH_KEY_FILE", "/run/secrets/key")
+
+	cfg, err := Parse(nil, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PrometheusSD.Port != 4280 {
+		t.Fatalf("unexpected Prometheus service discovery port: %d", cfg.PrometheusSD.Port)
+	}
+	if cfg.PrometheusSD.MetricsPath != "/metrics" {
+		t.Fatalf("unexpected Prometheus service discovery metrics path: %q", cfg.PrometheusSD.MetricsPath)
+	}
+}
+
+func TestParseNegatableBooleans(t *testing.T) {
+	cfg, err := Parse([]string{
+		"--database-url", "postgres://example",
+		"--lighthouse", "lh=nebula@192.168.110.1:4222",
+		"--ssh-key-file", "/run/secrets/key",
+		"--no-migrate",
+		"--no-refresh-views",
+		"--no-http-enabled",
+		"--no-otel-enabled",
+		"--no-once",
+		"--no-database-enable-timescale",
+	}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Migrate {
+		t.Fatalf("expected migrate to be disabled")
+	}
+	if cfg.RefreshViews {
+		t.Fatalf("expected refresh views to be disabled")
+	}
+	if cfg.HTTP.Enabled {
+		t.Fatalf("expected HTTP to be disabled")
+	}
+	if cfg.OTEL.Enabled {
+		t.Fatalf("expected OTEL to be disabled")
+	}
+	if cfg.Once {
+		t.Fatalf("expected once to be disabled")
+	}
+	if cfg.DatabaseEnableTimescale {
+		t.Fatalf("expected Timescale migration to be disabled")
 	}
 }
 

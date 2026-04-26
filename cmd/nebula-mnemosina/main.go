@@ -76,7 +76,7 @@ func run(args []string) error {
 
 	store := storage.New(pool)
 	if cfg.HTTP.Enabled {
-		httpserver.Start(ctx, cfg.HTTP, store, logger)
+		httpserver.Start(ctx, cfg.HTTP, cfg.PrometheusSD, cfg.LighthouseTargets, store, logger)
 	}
 
 	sshRunner, err := sshclient.New(cfg.SSH)

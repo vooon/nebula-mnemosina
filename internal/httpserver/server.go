@@ -9,13 +9,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/vooon/nebula-mnemosina/internal/config"
+	"github.com/vooon/nebula-mnemosina/internal/model"
 )
 
 type Store interface {
 	Ping(ctx context.Context) error
 }
 
-func Start(ctx context.Context, cfg config.HTTPConfig, store Store, logger *slog.Logger) *http.Server {
+func Start(ctx context.Context, cfg config.HTTPConfig, prometheusSD config.PrometheusSDConfig, lighthouses []model.Lighthouse, store Store, logger *slog.Logger) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -32,6 +33,7 @@ func Start(ctx context.Context, cfg config.HTTPConfig, store Store, logger *slog
 		_, _ = w.Write([]byte("ready\n"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle(prometheusSDPath, prometheusSDHandler(prometheusSD, lighthouses, logger))
 
 	server := &http.Server{
 		Addr:              cfg.Address,

@@ -14,20 +14,21 @@ import (
 type CLI struct {
 	Version                 kong.VersionFlag `env:"-"`
 	DatabaseURL             string           `name:"database-url" required:"" help:"PostgreSQL connection URL."`
-	DatabaseEnableTimescale bool             `name:"database-enable-timescale" help:"Apply optional TimescaleDB hypertable migration."`
-	Migrate                 bool             `name:"migrate" default:"true" help:"Run embedded database migrations on startup."`
-	RefreshViews            bool             `name:"refresh-views" default:"true" help:"Refresh Grafana materialized views after each successful poll write."`
+	DatabaseEnableTimescale bool             `name:"database-enable-timescale" negatable:"" help:"Apply optional TimescaleDB hypertable migration."`
+	Migrate                 bool             `name:"migrate" default:"true" negatable:"" help:"Run embedded database migrations on startup."`
+	RefreshViews            bool             `name:"refresh-views" default:"true" negatable:"" help:"Refresh Grafana materialized views after each successful poll write."`
 	DataDir                 string           `name:"data-dir" default:"/data" help:"Directory for runtime data such as learned SSH host keys."`
 	Lighthouses             []string         `name:"lighthouses" aliases:"lighthouse" required:"" sep:"," help:"Lighthouse SSH target. Format: name=user@host:port or user@host:port."`
 	PollInterval            time.Duration    `name:"poll-interval" default:"30s" help:"Interval between polling rounds."`
 	PollTimeout             time.Duration    `name:"poll-timeout" default:"10s" help:"Timeout for one lighthouse polling run."`
 	PollJitter              time.Duration    `name:"poll-jitter" default:"5s" help:"Maximum random delay added per lighthouse in a round."`
-	Once                    bool             `name:"once" help:"Run one polling round and exit."`
+	Once                    bool             `name:"once" negatable:"" help:"Run one polling round and exit."`
 	LogLevel                string           `name:"log-level" default:"info" enum:"debug,info,warn,error" help:"Log level."`
 
-	SSH  SSHConfig  `embed:"" prefix:"ssh-"`
-	HTTP HTTPConfig `embed:"" prefix:"http-"`
-	OTEL OTELConfig `embed:"" prefix:"otel-"`
+	SSH          SSHConfig          `embed:"" prefix:"ssh-"`
+	HTTP         HTTPConfig         `embed:"" prefix:"http-"`
+	OTEL         OTELConfig         `embed:"" prefix:"otel-"`
+	PrometheusSD PrometheusSDConfig `embed:"" prefix:"prometheus-sd-"`
 }
 
 type SSHConfig struct {
@@ -40,12 +41,17 @@ type SSHConfig struct {
 }
 
 type HTTPConfig struct {
-	Enabled bool   `name:"enabled" default:"true" help:"Enable health and metrics HTTP server."`
+	Enabled bool   `name:"enabled" default:"true" negatable:"" help:"Enable health and metrics HTTP server."`
 	Address string `name:"address" default:":12142" help:"HTTP listen address."`
 }
 
+type PrometheusSDConfig struct {
+	Port        int    `name:"port" default:"4280" help:"Nebula stats HTTP listen port used for discovered lighthouse targets."`
+	MetricsPath string `name:"metrics-path" default:"/metrics" help:"Nebula stats metrics path used by discovered targets."`
+}
+
 type OTELConfig struct {
-	Enabled     bool    `name:"enabled" help:"Enable OpenTelemetry tracing."`
+	Enabled     bool    `name:"enabled" negatable:"" help:"Enable OpenTelemetry tracing."`
 	ServiceName string  `name:"service-name" default:"nebula-mnemosina" help:"OTEL service name."`
 	Endpoint    string  `name:"endpoint" default:"localhost:4318" help:"OTLP HTTP endpoint host:port or URL."`
 	SampleRatio float64 `name:"sample-ratio" default:"1.0" help:"Trace sampling ratio from 0.0 to 1.0."`
@@ -82,6 +88,9 @@ func Parse(args []string, version string) (Config, error) {
 	}
 	if cli.OTEL.SampleRatio < 0 || cli.OTEL.SampleRatio > 1 {
 		return Config{}, fmt.Errorf("--otel-sample-ratio must be between 0.0 and 1.0")
+	}
+	if err := validatePrometheusSD(cli.PrometheusSD); err != nil {
+		return Config{}, err
 	}
 
 	return Config{
@@ -136,6 +145,16 @@ func parseLighthouses(values []string) ([]model.Lighthouse, error) {
 		return nil, fmt.Errorf("at least one lighthouse must be configured")
 	}
 	return targets, nil
+}
+
+func validatePrometheusSD(cfg PrometheusSDConfig) error {
+	if cfg.Port <= 0 || cfg.Port > 65535 {
+		return fmt.Errorf("--prometheus-sd-port must be between 1 and 65535")
+	}
+	if !strings.HasPrefix(cfg.MetricsPath, "/") {
+		return fmt.Errorf("--prometheus-sd-metrics-path must start with /")
+	}
+	return nil
 }
 
 func splitHostPortDefault(value, defaultPort string) (string, string, error) {

@@ -124,10 +124,26 @@ The collector exposes:
 /healthz
 /readyz
 /metrics
+/prometheus-sd
 ```
 
 Prometheus metrics describe the collector itself. PostgreSQL/TimescaleDB is the
 source of truth for Nebula topology history.
+
+`/prometheus-sd` returns Prometheus HTTP service discovery target groups for the
+configured lighthouses' Nebula stats endpoints. The SSH target host is reused,
+and the Nebula stats port defaults to `4280`; override it with
+`--prometheus-sd-port` or `MNEMO_PROMETHEUS_SD_PORT` if your `stats.listen`
+uses a different port.
+
+Example Prometheus scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: nebula
+    http_sd_configs:
+      - url: http://nebula-mnemosina:12142/prometheus-sd
+```
 
 ## Development
 
