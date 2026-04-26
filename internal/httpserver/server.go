@@ -14,6 +14,7 @@ import (
 
 type Store interface {
 	Ping(ctx context.Context) error
+	ListPresentHostmapPeers(ctx context.Context) ([]model.PresentPeer, error)
 }
 
 func Start(ctx context.Context, cfg config.HTTPConfig, prometheusSD config.PrometheusSDConfig, lighthouses []model.Lighthouse, store Store, logger *slog.Logger) *http.Server {
@@ -33,7 +34,7 @@ func Start(ctx context.Context, cfg config.HTTPConfig, prometheusSD config.Prome
 		_, _ = w.Write([]byte("ready\n"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
-	mux.Handle(prometheusSDPath, prometheusSDHandler(prometheusSD, lighthouses, logger))
+	mux.Handle("/prometheus-sd", prometheusSDHandler(prometheusSD, lighthouses, store, logger))
 
 	server := &http.Server{
 		Addr:              cfg.Address,

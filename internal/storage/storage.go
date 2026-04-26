@@ -120,6 +120,28 @@ func (s *Store) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
 
+func (s *Store) ListPresentHostmapPeers(ctx context.Context) ([]model.PresentPeer, error) {
+	rows, err := s.queries.ListPresentHostmapPeers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list present hostmap peers: %w", err)
+	}
+
+	peers := make([]model.PresentPeer, 0, len(rows))
+	for _, row := range rows {
+		peers = append(peers, model.PresentPeer{
+			LighthouseName:  row.LighthouseName,
+			PeerKey:         row.PeerKey,
+			PrimaryVPNAddr:  textValue(row.PrimaryVpnAddr),
+			VPNAddrs:        nonNil(row.VpnAddrs),
+			CertName:        textValue(row.CertName),
+			CertFingerprint: textValue(row.CertFingerprint),
+			CertGroups:      nonNil(row.CertGroups),
+			NebulaVersion:   textValue(row.NebulaVersion),
+		})
+	}
+	return peers, nil
+}
+
 func (s *Store) insertHostmapEntries(ctx context.Context, q *db.Queries, pollRunID int64, result model.PollResult, source string, entries []model.HostmapEntry) error {
 	for i, entry := range entries {
 		raw := entry.Raw
@@ -223,6 +245,13 @@ func nullableTime(value time.Time) pgtype.Timestamptz {
 
 func nullableString(value string) pgtype.Text {
 	return pgtype.Text{String: value, Valid: value != ""}
+}
+
+func textValue(value pgtype.Text) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
 }
 
 func nullableError(err error) pgtype.Text {

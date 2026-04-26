@@ -288,3 +288,92 @@ func (q *Queries) InsertRelaySnapshot(ctx context.Context, arg InsertRelaySnapsh
 	)
 	return err
 }
+
+const listPresentHostmapPeers = `-- name: ListPresentHostmapPeers :many
+WITH latest_poll AS (
+    SELECT DISTINCT ON (lighthouse_name)
+        id,
+        lighthouse_name,
+        started_at,
+        nebula_version
+    FROM poll_runs
+    WHERE success
+    ORDER BY lighthouse_name, started_at DESC, id DESC
+),
+ranked AS (
+    SELECT
+        h.observed_at,
+        h.lighthouse_name,
+        COALESCE(h.cert_fingerprint, h.primary_vpn_addr, h.local_index::text || ':' || h.remote_index::text)::text AS peer_key,
+        h.primary_vpn_addr,
+        h.vpn_addrs,
+        h.cert_name,
+        h.cert_fingerprint,
+        h.cert_groups,
+        p.nebula_version,
+        row_number() OVER (
+            PARTITION BY COALESCE(h.cert_fingerprint, h.primary_vpn_addr, h.local_index::text || ':' || h.remote_index::text)
+            ORDER BY h.observed_at DESC, h.lighthouse_name, h.entry_index
+        ) AS row_rank
+    FROM latest_poll p
+    JOIN hostmap_entries h ON h.poll_run_id = p.id
+    WHERE h.source = 'hostmap'
+      AND h.primary_vpn_addr IS NOT NULL
+      AND h.primary_vpn_addr <> ''
+)
+SELECT
+    observed_at,
+    lighthouse_name,
+    peer_key,
+    primary_vpn_addr,
+    vpn_addrs,
+    cert_name,
+    cert_fingerprint,
+    cert_groups,
+    nebula_version
+FROM ranked
+WHERE row_rank = 1
+ORDER BY COALESCE(cert_name, primary_vpn_addr), primary_vpn_addr
+`
+
+type ListPresentHostmapPeersRow struct {
+	ObservedAt      pgtype.Timestamptz `json:"observed_at"`
+	LighthouseName  string             `json:"lighthouse_name"`
+	PeerKey         string             `json:"peer_key"`
+	PrimaryVpnAddr  pgtype.Text        `json:"primary_vpn_addr"`
+	VpnAddrs        []string           `json:"vpn_addrs"`
+	CertName        pgtype.Text        `json:"cert_name"`
+	CertFingerprint pgtype.Text        `json:"cert_fingerprint"`
+	CertGroups      []string           `json:"cert_groups"`
+	NebulaVersion   pgtype.Text        `json:"nebula_version"`
+}
+
+func (q *Queries) ListPresentHostmapPeers(ctx context.Context) ([]ListPresentHostmapPeersRow, error) {
+	rows, err := q.db.Query(ctx, listPresentHostmapPeers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPresentHostmapPeersRow
+	for rows.Next() {
+		var i ListPresentHostmapPeersRow
+		if err := rows.Scan(
+			&i.ObservedAt,
+			&i.LighthouseName,
+			&i.PeerKey,
+			&i.PrimaryVpnAddr,
+			&i.VpnAddrs,
+			&i.CertName,
+			&i.CertFingerprint,
+			&i.CertGroups,
+			&i.NebulaVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

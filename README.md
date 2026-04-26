@@ -130,11 +130,17 @@ The collector exposes:
 Prometheus metrics describe the collector itself. PostgreSQL/TimescaleDB is the
 source of truth for Nebula topology history.
 
-`/prometheus-sd` returns Prometheus HTTP service discovery target groups for the
-configured lighthouses' Nebula stats endpoints. The SSH target host is reused,
-and the Nebula stats port defaults to `4280`; override it with
-`--prometheus-sd-port` or `MNEMO_PROMETHEUS_SD_PORT` if your `stats.listen`
-uses a different port.
+`/prometheus-sd` returns Prometheus HTTP service discovery target groups for
+present peers from the latest successful lighthouse hostmap polls. Configured
+lighthouses are also included as bootstrap targets when they are not already in
+the present peer set. The Nebula stats port defaults to `4280`; override it with
+`--prometheus-sd-port` or `MNEMO_PROMETHEUS_SD_PORT` if your `stats.listen` uses
+a different port.
+
+The HTTP SD `targets` value remains the real scrape address, while Nebula
+identity is exposed as `__meta_nebula_*` labels for relabeling. For example,
+map `__meta_nebula_name` to `instance` and `alias` if you want dashboards to
+show Nebula node names instead of `ip:port`.
 
 Example Prometheus scrape config:
 
@@ -143,6 +149,17 @@ scrape_configs:
   - job_name: nebula
     http_sd_configs:
       - url: http://nebula-mnemosina:12142/prometheus-sd
+    relabel_configs:
+      - source_labels: [__meta_nebula_name]
+        target_label: instance
+      - source_labels: [__meta_nebula_name]
+        target_label: alias
+      - source_labels: [__meta_nebula_vpn_addr]
+        target_label: nebula_vpn_addr
+      - source_labels: [__meta_nebula_cert_name]
+        target_label: nebula_cert_name
+      - source_labels: [__meta_nebula_source]
+        target_label: nebula_sd_source
 ```
 
 ## Development
