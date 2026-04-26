@@ -11,9 +11,12 @@ E2E_IMAGE ?= nebula-mnemosina:e2e
 E2E_IMAGE_PULL_POLICY ?= IfNotPresent
 E2E_NAMESPACE ?= nebula-mnemosina-e2e
 E2E_GENERATED ?= tests/e2e/generated
+E2E_REGISTRY_NAMESPACE ?= $(E2E_NAMESPACE)
 E2E_REGISTRY_NODE_PORT ?= 30500
 E2E_REGISTRY_HOST ?=
 E2E_REGISTRY_DNS_NAME ?=
+E2E_REGISTRY_PORT ?= 443
+E2E_REGISTRY_DNS_TIMEOUT ?= 300
 E2E_REGISTRY_INGRESS_CLASS ?= tenant-root
 E2E_REGISTRY_INGRESS_SERVICE_NAMESPACE ?= tenant-root
 E2E_REGISTRY_INGRESS_SERVICE ?= root-ingress-controller
@@ -22,8 +25,9 @@ E2E_ZONEOMATIC_URL ?=
 E2E_ZONEOMATIC_ACMEDNS_HOST ?=
 E2E_ACME_SERVER ?= https://acme-v02.api.letsencrypt.org/directory
 export E2E_ACME_SERVER E2E_GENERATED E2E_NAMESPACE E2E_REGISTRY_DNS_NAME
-export E2E_REGISTRY_INGRESS_CLASS E2E_REGISTRY_INGRESS_IP
+export E2E_REGISTRY_DNS_TIMEOUT E2E_REGISTRY_INGRESS_CLASS E2E_REGISTRY_INGRESS_IP
 export E2E_REGISTRY_INGRESS_SERVICE E2E_REGISTRY_INGRESS_SERVICE_NAMESPACE
+export E2E_REGISTRY_NAMESPACE E2E_REGISTRY_PORT
 export E2E_ZONEOMATIC_ACMEDNS_HOST E2E_ZONEOMATIC_PASSWORD E2E_ZONEOMATIC_URL E2E_ZONEOMATIC_USER
 export KUBECTL
 
@@ -94,16 +98,25 @@ e2e-deploy: e2e-fixtures
 
 .PHONY: e2e-registry
 e2e-registry:
-	$(KUBECTL) apply -f tests/e2e/manifests/namespace.yaml
-	$(KUBECTL) wait --for=jsonpath='{.status.phase}'=Active namespace/$(E2E_NAMESPACE) --timeout=60s
-	$(KUBECTL) apply -f tests/e2e/manifests/registry.yaml
-	$(KUBECTL) -n $(E2E_NAMESPACE) rollout status deployment/nebula-mnemosina-registry --timeout=120s
+	$(KUBECTL) get namespace $(E2E_REGISTRY_NAMESPACE) >/dev/null || $(KUBECTL) create namespace $(E2E_REGISTRY_NAMESPACE)
+	$(KUBECTL) -n $(E2E_REGISTRY_NAMESPACE) apply -f tests/e2e/manifests/registry.yaml
+	$(KUBECTL) -n $(E2E_REGISTRY_NAMESPACE) rollout status deployment/nebula-mnemosina-registry --timeout=120s
+
+.PHONY: e2e-registry-nodeport
+e2e-registry-nodeport: e2e-registry
+	$(KUBECTL) -n $(E2E_REGISTRY_NAMESPACE) patch service/nebula-mnemosina-registry -p '{"spec":{"type":"NodePort","ports":[{"name":"registry","port":5000,"targetPort":"registry","nodePort":$(E2E_REGISTRY_NODE_PORT)}]}}'
 
 .PHONY: e2e-registry-https
 e2e-registry-https: e2e-registry
 	tests/e2e/scripts/prepare-registry-dns.sh
-	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready certificate/nebula-mnemosina-registry --timeout=300s
-	curl -fsS https://$(E2E_REGISTRY_DNS_NAME)/v2/ >/dev/null
+	$(KUBECTL) -n $(E2E_REGISTRY_NAMESPACE) wait --for=condition=Ready certificate/nebula-mnemosina-registry --timeout=300s
+	tests/e2e/scripts/wait-registry-dns.sh
+	registry_addr="$(E2E_REGISTRY_DNS_NAME)"; \
+	registry_ip="$$(. "$(E2E_GENERATED)/registry.env"; printf '%s' "$${E2E_REGISTRY_SELECTED_IP}")"; \
+	if [ "$(E2E_REGISTRY_PORT)" != "443" ]; then \
+		registry_addr="$${registry_addr}:$(E2E_REGISTRY_PORT)"; \
+	fi; \
+	curl -fsS --resolve "$(E2E_REGISTRY_DNS_NAME):$(E2E_REGISTRY_PORT):$${registry_ip}" "https://$${registry_addr}/v2/" >/dev/null
 
 .PHONY: e2e-test
 e2e-test:
@@ -127,7 +140,7 @@ e2e-current: e2e-deploy e2e-test
 e2e-current-push: e2e-image-push e2e-current
 
 .PHONY: e2e-current-registry
-e2e-current-registry: e2e-registry
+e2e-current-registry: e2e-registry-nodeport
 	registry_host="$(E2E_REGISTRY_HOST)"; \
 	if [ -z "$${registry_host}" ]; then \
 		registry_host="$$( $(KUBECTL) get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' )"; \
@@ -140,7 +153,11 @@ e2e-current-registry: e2e-registry
 
 .PHONY: e2e-current-registry-https
 e2e-current-registry-https: e2e-registry-https
-	$(MAKE) E2E_IMAGE="$(E2E_REGISTRY_DNS_NAME)/nebula-mnemosina:e2e" E2E_IMAGE_PULL_POLICY=Always e2e-image-push e2e-current
+	registry_addr="$(E2E_REGISTRY_DNS_NAME)"; \
+	if [ "$(E2E_REGISTRY_PORT)" != "443" ]; then \
+		registry_addr="$${registry_addr}:$(E2E_REGISTRY_PORT)"; \
+	fi; \
+	$(MAKE) E2E_IMAGE="$${registry_addr}/nebula-mnemosina:e2e" E2E_IMAGE_PULL_POLICY=Always e2e-image-push e2e-current
 
 .PHONY: e2e-redeploy
 e2e-redeploy: e2e-build e2e-deploy e2e-test

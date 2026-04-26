@@ -7,11 +7,11 @@ nebula_cert_version="${NEBULA_CERT_VERSION:-v1.10.3}"
 nodes=(lh1 lh2 peer1 peer2 peer3)
 
 declare -A vpn_ips=(
-  [lh1]="192.168.110.101"
-  [lh2]="192.168.110.102"
-  [peer1]="192.168.110.103"
-  [peer2]="192.168.110.104"
-  [peer3]="192.168.110.105"
+  [lh1]="192.168.111.101"
+  [lh2]="192.168.111.102"
+  [peer1]="192.168.111.103"
+  [peer2]="192.168.111.104"
+  [peer3]="192.168.111.105"
 )
 
 declare -A groups=(
