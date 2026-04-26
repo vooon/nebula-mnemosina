@@ -12,6 +12,7 @@ import (
 
 	charmLog "github.com/charmbracelet/log"
 	"github.com/jackc/pgx/v5/pgxpool"
+	promVersion "github.com/prometheus/common/version"
 
 	"github.com/vooon/nebula-mnemosina/internal/collector"
 	"github.com/vooon/nebula-mnemosina/internal/config"
@@ -30,7 +31,7 @@ func main() {
 }
 
 func run(args []string) error {
-	cfg, err := config.Parse(args)
+	cfg, err := config.Parse(args, versionText())
 	if err != nil {
 		return err
 	}
@@ -85,6 +86,13 @@ func run(args []string) error {
 		return nil
 	}
 	return err
+}
+
+func versionText() string {
+	if promVersion.Version == "" {
+		promVersion.Version = "dev"
+	}
+	return promVersion.Print("nebula-mnemosina")
 }
 
 func charmLevel(level string) charmLog.Level {
