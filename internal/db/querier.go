@@ -15,6 +15,7 @@ type Querier interface {
 	InsertLighthouseAddrmapEntry(ctx context.Context, arg InsertLighthouseAddrmapEntryParams) error
 	InsertRawCommandPayload(ctx context.Context, arg InsertRawCommandPayloadParams) error
 	InsertRelaySnapshot(ctx context.Context, arg InsertRelaySnapshotParams) error
+	ListPresentHostmapPeers(ctx context.Context) ([]ListPresentHostmapPeersRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

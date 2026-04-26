@@ -12,6 +12,17 @@ func (l Lighthouse) Target() string {
 	return l.User + "@" + l.Address
 }
 
+type PresentPeer struct {
+	LighthouseName  string
+	PeerKey         string
+	PrimaryVPNAddr  string
+	VPNAddrs        []string
+	CertName        string
+	CertFingerprint string
+	CertGroups      []string
+	NebulaVersion   string
+}
+
 type CommandResult struct {
 	Command    string
 	StartedAt  time.Time
