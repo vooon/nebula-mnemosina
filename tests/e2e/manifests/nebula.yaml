@@ -8,10 +8,22 @@ metadata:
     role: lighthouse
     node: lh1
 spec:
+  securityContext:
+    fsGroup: 65532
+    runAsGroup: 65532
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: nebula
       image: nebulaoss/nebula:1.10.3
       imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
       ports:
         - containerPort: 4222
           name: ssh
@@ -52,11 +64,11 @@ spec:
     - name: pki
       secret:
         secretName: nebula-pki
-        defaultMode: 0400
+        defaultMode: 0440
     - name: ssh
       secret:
         secretName: nebula-ssh
-        defaultMode: 0400
+        defaultMode: 0440
     - name: config
       configMap:
         name: nebula-config
@@ -98,10 +110,22 @@ metadata:
     role: lighthouse
     node: lh2
 spec:
+  securityContext:
+    fsGroup: 65532
+    runAsGroup: 65532
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: nebula
       image: nebulaoss/nebula:1.10.3
       imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
       ports:
         - containerPort: 4222
           name: ssh
@@ -142,11 +166,11 @@ spec:
     - name: pki
       secret:
         secretName: nebula-pki
-        defaultMode: 0400
+        defaultMode: 0440
     - name: ssh
       secret:
         secretName: nebula-ssh
-        defaultMode: 0400
+        defaultMode: 0440
     - name: config
       configMap:
         name: nebula-config
@@ -188,10 +212,22 @@ metadata:
     role: peer
     node: peer1
 spec:
+  securityContext:
+    fsGroup: 65532
+    runAsGroup: 65532
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: nebula
       image: nebulaoss/nebula:1.10.3
       imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
       ports:
         - containerPort: 4242
           name: nebula
@@ -226,7 +262,7 @@ spec:
     - name: pki
       secret:
         secretName: nebula-pki
-        defaultMode: 0400
+        defaultMode: 0440
     - name: config
       configMap:
         name: nebula-config
@@ -241,10 +277,22 @@ metadata:
     role: peer
     node: peer2
 spec:
+  securityContext:
+    fsGroup: 65532
+    runAsGroup: 65532
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: nebula
       image: nebulaoss/nebula:1.10.3
       imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
       ports:
         - containerPort: 4242
           name: nebula
@@ -279,7 +327,7 @@ spec:
     - name: pki
       secret:
         secretName: nebula-pki
-        defaultMode: 0400
+        defaultMode: 0440
     - name: config
       configMap:
         name: nebula-config
@@ -294,10 +342,22 @@ metadata:
     role: peer
     node: peer3
 spec:
+  securityContext:
+    fsGroup: 65532
+    runAsGroup: 65532
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: nebula
       image: nebulaoss/nebula:1.10.3
       imagePullPolicy: IfNotPresent
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
       ports:
         - containerPort: 4242
           name: nebula
@@ -332,7 +392,7 @@ spec:
     - name: pki
       secret:
         secretName: nebula-pki
-        defaultMode: 0400
+        defaultMode: 0440
     - name: config
       configMap:
         name: nebula-config

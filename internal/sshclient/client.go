@@ -88,7 +88,7 @@ func (c *Client) Run(ctx context.Context, lighthouse model.Lighthouse, command s
 		_ = session.Close()
 	}()
 
-	var output bytes.Buffer
+	var output lockedBuffer
 	session.Stdout = &output
 	session.Stderr = &output
 
@@ -110,6 +110,23 @@ func (c *Client) Run(ctx context.Context, lighthouse model.Lighthouse, command s
 	}
 
 	return result
+}
+
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 func loadSigner(cfg config.SSHConfig) (ssh.Signer, error) {

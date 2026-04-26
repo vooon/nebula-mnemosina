@@ -81,6 +81,7 @@ e2e-build: e2e-image-build
 e2e-deploy: e2e-fixtures
 	$(KUBECTL) apply -f tests/e2e/manifests/namespace.yaml
 	$(KUBECTL) wait --for=jsonpath='{.status.phase}'=Active namespace/$(E2E_NAMESPACE) --timeout=60s
+	$(KUBECTL) -n $(E2E_NAMESPACE) delete pod -l app=postgres --ignore-not-found
 	$(KUBECTL) -n $(E2E_NAMESPACE) delete pod,service -l app=nebula --ignore-not-found
 	$(KUBECTL) -n $(E2E_NAMESPACE) create secret generic nebula-pki --from-file=ca.crt=$(E2E_GENERATED)/ca.crt --from-file=lh1.crt=$(E2E_GENERATED)/lh1.crt --from-file=lh1.key=$(E2E_GENERATED)/lh1.key --from-file=lh2.crt=$(E2E_GENERATED)/lh2.crt --from-file=lh2.key=$(E2E_GENERATED)/lh2.key --from-file=peer1.crt=$(E2E_GENERATED)/peer1.crt --from-file=peer1.key=$(E2E_GENERATED)/peer1.key --from-file=peer2.crt=$(E2E_GENERATED)/peer2.crt --from-file=peer2.key=$(E2E_GENERATED)/peer2.key --from-file=peer3.crt=$(E2E_GENERATED)/peer3.crt --from-file=peer3.key=$(E2E_GENERATED)/peer3.key --dry-run=client -o yaml | $(KUBECTL) apply -f -
 	$(KUBECTL) -n $(E2E_NAMESPACE) create secret generic nebula-ssh --from-file=ssh_client_key=$(E2E_GENERATED)/ssh_client_key --from-file=ssh_host_ed25519_key=$(E2E_GENERATED)/ssh_host_ed25519_key --dry-run=client -o yaml | $(KUBECTL) apply -f -
@@ -94,7 +95,7 @@ e2e-deploy: e2e-fixtures
 	$(KUBECTL) -n $(E2E_NAMESPACE) rollout status deployment/nebula-mnemosina --timeout=120s
 	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=postgres --timeout=120s
 	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=nebula --timeout=120s
-	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=nebula-mnemosina --timeout=120s
+	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Available deployment/nebula-mnemosina --timeout=120s
 
 .PHONY: e2e-registry
 e2e-registry:
