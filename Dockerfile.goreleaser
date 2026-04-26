@@ -1,0 +1,9 @@
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY nebula-mnemosina /usr/local/bin/nebula-mnemosina
+COPY --chown=nonroot:nonroot docker/rootfs/data /data
+
+VOLUME ["/data"]
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/nebula-mnemosina"]
