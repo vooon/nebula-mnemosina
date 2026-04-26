@@ -214,6 +214,35 @@ machine:
           - "http://192.168.61.61:30500"
 ```
 
+If you have zoneomatic managing a private DNS zone, the registry can instead
+use a real DNS name and Let's Encrypt certificate. This avoids Talos
+insecure-registry configuration:
+
+```bash
+E2E_REGISTRY_DNS_NAME=registry.example.net \
+E2E_ZONEOMATIC_URL=https://nsapi.example.com \
+E2E_ZONEOMATIC_USER=... \
+E2E_ZONEOMATIC_PASSWORD=... \
+make e2e-current-registry-https
+```
+
+That registers `E2E_REGISTRY_DNS_NAME` with zoneomatic, creates an E2E
+cert-manager Issuer backed by zoneomatic's acme-dns compatible `/acme` endpoint,
+waits for the certificate, and pushes to:
+
+```text
+${E2E_REGISTRY_DNS_NAME}/nebula-mnemosina:e2e
+```
+
+Defaults:
+
+```text
+E2E_REGISTRY_INGRESS_CLASS=tenant-root
+E2E_REGISTRY_INGRESS_SERVICE_NAMESPACE=tenant-root
+E2E_REGISTRY_INGRESS_SERVICE=root-ingress-controller
+E2E_ACME_SERVER=https://acme-v02.api.letsencrypt.org/directory
+```
+
 Step-by-step k3d flow:
 
 ```bash

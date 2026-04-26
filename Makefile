@@ -13,6 +13,19 @@ E2E_NAMESPACE ?= nebula-mnemosina-e2e
 E2E_GENERATED ?= tests/e2e/generated
 E2E_REGISTRY_NODE_PORT ?= 30500
 E2E_REGISTRY_HOST ?=
+E2E_REGISTRY_DNS_NAME ?=
+E2E_REGISTRY_INGRESS_CLASS ?= tenant-root
+E2E_REGISTRY_INGRESS_SERVICE_NAMESPACE ?= tenant-root
+E2E_REGISTRY_INGRESS_SERVICE ?= root-ingress-controller
+E2E_REGISTRY_INGRESS_IP ?=
+E2E_ZONEOMATIC_URL ?=
+E2E_ZONEOMATIC_ACMEDNS_HOST ?=
+E2E_ACME_SERVER ?= https://acme-v02.api.letsencrypt.org/directory
+export E2E_ACME_SERVER E2E_GENERATED E2E_NAMESPACE E2E_REGISTRY_DNS_NAME
+export E2E_REGISTRY_INGRESS_CLASS E2E_REGISTRY_INGRESS_IP
+export E2E_REGISTRY_INGRESS_SERVICE E2E_REGISTRY_INGRESS_SERVICE_NAMESPACE
+export E2E_ZONEOMATIC_ACMEDNS_HOST E2E_ZONEOMATIC_PASSWORD E2E_ZONEOMATIC_URL E2E_ZONEOMATIC_USER
+export KUBECTL
 
 .PHONY: generate
 generate:
@@ -86,6 +99,12 @@ e2e-registry:
 	$(KUBECTL) apply -f tests/e2e/manifests/registry.yaml
 	$(KUBECTL) -n $(E2E_NAMESPACE) rollout status deployment/nebula-mnemosina-registry --timeout=120s
 
+.PHONY: e2e-registry-https
+e2e-registry-https: e2e-registry
+	tests/e2e/scripts/prepare-registry-dns.sh
+	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready certificate/nebula-mnemosina-registry --timeout=300s
+	curl -fsS https://$(E2E_REGISTRY_DNS_NAME)/v2/ >/dev/null
+
 .PHONY: e2e-test
 e2e-test:
 	GOCACHE=$(GOCACHE) go test -tags=e2e -v -timeout=5m -count=1 ./tests/e2e/...
@@ -118,6 +137,10 @@ e2e-current-registry: e2e-registry
 		exit 1; \
 	fi; \
 	$(MAKE) E2E_IMAGE="$${registry_host}:$(E2E_REGISTRY_NODE_PORT)/nebula-mnemosina:e2e" E2E_IMAGE_PULL_POLICY=Always CONTAINER_PUSH_FLAGS=--tls-verify=false e2e-image-push e2e-current
+
+.PHONY: e2e-current-registry-https
+e2e-current-registry-https: e2e-registry-https
+	$(MAKE) E2E_IMAGE="$(E2E_REGISTRY_DNS_NAME)/nebula-mnemosina:e2e" E2E_IMAGE_PULL_POLICY=Always e2e-image-push e2e-current
 
 .PHONY: e2e-redeploy
 e2e-redeploy: e2e-build e2e-deploy e2e-test
