@@ -173,10 +173,6 @@ func (c *Collector) pollLighthouse(ctx context.Context, lighthouse model.Lightho
 			),
 		)
 		commandResult := c.runner.Run(commandCtx, lighthouse, command)
-		commandSpan.SetAttributes(
-			attribute.Bool("ssh.command.success", commandResult.Success()),
-			attribute.Int64("ssh.command.duration_ms", commandResult.Duration().Milliseconds()),
-		)
 		if commandResult.Err != nil {
 			commandSpan.RecordError(commandResult.Err)
 			commandSpan.SetStatus(codes.Error, commandResult.Err.Error())
