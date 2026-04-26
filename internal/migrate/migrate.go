@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"sort"
-	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	tern "github.com/jackc/tern/v2/migrate"
 
 	"github.com/vooon/nebula-mnemosina/db/migrations"
 )
@@ -17,65 +17,42 @@ type Options struct {
 }
 
 func Run(ctx context.Context, pool *pgxpool.Pool, options Options) error {
-	entries, err := fs.ReadDir(migrations.Files, ".")
+	conn, err := pool.Acquire(ctx)
 	if err != nil {
-		return fmt.Errorf("read embedded migrations: %w", err)
+		return fmt.Errorf("acquire migration connection: %w", err)
 	}
+	defer conn.Release()
 
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
-			continue
-		}
-		if strings.Contains(entry.Name(), "timescale_optional") && !options.EnableTimescale {
-			continue
-		}
-		names = append(names, entry.Name())
+	if err := runSet(ctx, conn.Conn(), "public.mnemo_schema_version", "core"); err != nil {
+		return err
 	}
-	sort.Strings(names)
-
-	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`); err != nil {
-		return fmt.Errorf("ensure schema_migrations: %w", err)
-	}
-
-	for _, name := range names {
-		applied, err := migrationApplied(ctx, pool, name)
-		if err != nil {
+	if options.EnableTimescale {
+		if err := runSet(ctx, conn.Conn(), "public.mnemo_timescale_version", "timescale"); err != nil {
 			return err
 		}
-		if applied {
-			continue
-		}
-
-		sql, err := migrations.Files.ReadFile(name)
-		if err != nil {
-			return fmt.Errorf("read migration %s: %w", name, err)
-		}
-		tx, err := pool.Begin(ctx)
-		if err != nil {
-			return fmt.Errorf("begin migration %s: %w", name, err)
-		}
-		if _, err := tx.Exec(ctx, string(sql)); err != nil {
-			_ = tx.Rollback(ctx)
-			return fmt.Errorf("apply migration %s: %w", name, err)
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, name); err != nil {
-			_ = tx.Rollback(ctx)
-			return fmt.Errorf("record migration %s: %w", name, err)
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return fmt.Errorf("commit migration %s: %w", name, err)
-		}
+	}
+	if err := runSet(ctx, conn.Conn(), "public.mnemo_views_version", "views"); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func migrationApplied(ctx context.Context, pool *pgxpool.Pool, name string) (bool, error) {
-	var exists bool
-	err := pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, name).Scan(&exists)
+func runSet(ctx context.Context, conn *pgx.Conn, versionTable, dir string) error {
+	fsys, err := fs.Sub(migrations.Files, dir)
 	if err != nil {
-		return false, fmt.Errorf("check migration %s: %w", name, err)
+		return fmt.Errorf("open embedded %s migrations: %w", dir, err)
 	}
-	return exists, nil
+
+	migrator, err := tern.NewMigrator(ctx, conn, versionTable)
+	if err != nil {
+		return fmt.Errorf("initialize %s migrator: %w", dir, err)
+	}
+	if err := migrator.LoadMigrations(fsys); err != nil {
+		return fmt.Errorf("load %s migrations: %w", dir, err)
+	}
+	if err := migrator.Migrate(ctx); err != nil {
+		return fmt.Errorf("run %s migrations: %w", dir, err)
+	}
+	return nil
 }

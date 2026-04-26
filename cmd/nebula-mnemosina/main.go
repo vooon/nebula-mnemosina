@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	charmLog "github.com/charmbracelet/log"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/vooon/nebula-mnemosina/internal/collector"
@@ -33,8 +35,11 @@ func run(args []string) error {
 		return err
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slogLevel(cfg.LogLevel),
+	logger := slog.New(charmLog.NewWithOptions(os.Stdout, charmLog.Options{
+		Level:           charmLevel(cfg.LogLevel),
+		ReportTimestamp: true,
+		TimeFunction:    charmLog.NowUTC,
+		TimeFormat:      time.RFC3339,
 	}))
 	slog.SetDefault(logger)
 
@@ -82,15 +87,15 @@ func run(args []string) error {
 	return err
 }
 
-func slogLevel(level string) slog.Level {
+func charmLevel(level string) charmLog.Level {
 	switch level {
 	case "debug":
-		return slog.LevelDebug
+		return charmLog.DebugLevel
 	case "warn":
-		return slog.LevelWarn
+		return charmLog.WarnLevel
 	case "error":
-		return slog.LevelError
+		return charmLog.ErrorLevel
 	default:
-		return slog.LevelInfo
+		return charmLog.InfoLevel
 	}
 }

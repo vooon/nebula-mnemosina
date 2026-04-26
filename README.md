@@ -83,7 +83,16 @@ insecure    skip verification
 
 ## Database
 
-The service runs embedded migrations by default. It stores:
+The service runs embedded Tern migrations by default. Migrations are split into
+three sets so TimescaleDB can stay optional:
+
+```text
+db/migrations/core
+db/migrations/timescale
+db/migrations/views
+```
+
+It stores:
 
 - raw SSH command payloads
 - poll run health
@@ -101,8 +110,8 @@ mnemo_poll_health_5m
 mnemo_peer_cert_inventory
 ```
 
-When `NEBULA_MNEMOSINA_DATABASE_ENABLE_TIMESCALE=true`, optional TimescaleDB
-hypertable migrations are applied.
+When `NEBULA_MNEMOSINA_DATABASE_ENABLE_TIMESCALE=true`, the optional
+TimescaleDB migration set is applied between the core tables and Grafana views.
 
 ## HTTP
 

@@ -2,8 +2,8 @@ version: "2"
 sql:
   - engine: postgresql
     schema:
-      - db/migrations/001_schema.sql
-      - db/migrations/003_views.sql
+      - db/migrations/core/001_schema.sql
+      - db/migrations/views/001_grafana_views.sql
     queries:
       - db/queries
     gen:
