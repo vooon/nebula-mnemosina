@@ -89,6 +89,24 @@ func TestParsePrometheusSDDefaults(t *testing.T) {
 	}
 }
 
+func TestParseDebugShortcut(t *testing.T) {
+	cfg, err := Parse([]string{
+		"--database-url", "postgres://example",
+		"--lighthouse", "lh=nebula@192.168.110.1:4222",
+		"--ssh-key-file", "/run/secrets/key",
+		"--debug",
+	}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Debug {
+		t.Fatalf("expected debug flag to be set")
+	}
+	if cfg.LogLevel != "debug" {
+		t.Fatalf("expected debug flag to force log level debug, got %q", cfg.LogLevel)
+	}
+}
+
 func TestParseNegatableBooleans(t *testing.T) {
 	cfg, err := Parse([]string{
 		"--database-url", "postgres://example",
@@ -99,6 +117,7 @@ func TestParseNegatableBooleans(t *testing.T) {
 		"--no-http-enabled",
 		"--no-otel-enabled",
 		"--no-once",
+		"--no-debug",
 		"--no-database-enable-timescale",
 	}, "test")
 	if err != nil {

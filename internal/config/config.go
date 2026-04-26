@@ -23,6 +23,7 @@ type CLI struct {
 	PollTimeout             time.Duration    `name:"poll-timeout" default:"10s" help:"Timeout for one lighthouse polling run."`
 	PollJitter              time.Duration    `name:"poll-jitter" default:"5s" help:"Maximum random delay added per lighthouse in a round."`
 	Once                    bool             `name:"once" negatable:"" help:"Run one polling round and exit."`
+	Debug                   bool             `name:"debug" negatable:"" help:"Shortcut for --log-level=debug."`
 	LogLevel                string           `name:"log-level" default:"info" enum:"debug,info,warn,error" help:"Log level."`
 
 	SSH          SSHConfig          `embed:"" prefix:"ssh-"`
@@ -77,6 +78,9 @@ func Parse(args []string, version string) (Config, error) {
 	_, err = parser.Parse(args)
 	if err != nil {
 		return Config{}, err
+	}
+	if cli.Debug {
+		cli.LogLevel = "debug"
 	}
 
 	lighthouses, err := parseLighthouses(cli.Lighthouses)
