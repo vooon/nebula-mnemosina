@@ -35,9 +35,13 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	logLevel, err := charmLog.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		return fmt.Errorf("parse log level: %w", err)
+	}
 
 	logger := slog.New(charmLog.NewWithOptions(os.Stdout, charmLog.Options{
-		Level:           charmLevel(cfg.LogLevel),
+		Level:           logLevel,
 		ReportTimestamp: true,
 		TimeFunction:    charmLog.NowUTC,
 		TimeFormat:      time.RFC3339,
@@ -93,17 +97,4 @@ func versionText() string {
 		promVersion.Version = "dev"
 	}
 	return promVersion.Print("nebula-mnemosina")
-}
-
-func charmLevel(level string) charmLog.Level {
-	switch level {
-	case "debug":
-		return charmLog.DebugLevel
-	case "warn":
-		return charmLog.WarnLevel
-	case "error":
-		return charmLog.ErrorLevel
-	default:
-		return charmLog.InfoLevel
-	}
 }

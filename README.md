@@ -36,7 +36,7 @@ chmod 0600 secrets/nebula_ssh_key
 Start the collector and TimescaleDB:
 
 ```bash
-docker compose up --build
+podman compose up --build
 ```
 
 The compose stack uses one application data volume:
@@ -82,7 +82,7 @@ accept-new  learn unknown keys, reject changed keys
 insecure    skip verification
 ```
 
-`accept-new` is the Docker-friendly default.
+`accept-new` is the container-friendly default.
 
 ## Database
 
@@ -137,5 +137,5 @@ make test
 make build
 ```
 
-Releases are handled by GoReleaser on `v*` tags and publish multi-arch Docker
-images to GHCR.
+Releases are handled by GoReleaser on `v*` tags and publish multi-arch
+container images to GHCR.

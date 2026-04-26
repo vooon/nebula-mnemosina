@@ -1,5 +1,7 @@
 GOCACHE ?= /tmp/nebula-mnemosina-gocache
 CGO_ENABLED ?= 0
+CONTAINER_TOOL ?= podman
+COMPOSE ?= podman compose
 
 .PHONY: generate
 generate:
@@ -16,3 +18,11 @@ build:
 .PHONY: tidy
 tidy:
 	GOCACHE=$(GOCACHE) go mod tidy
+
+.PHONY: image-build
+image-build:
+	$(CONTAINER_TOOL) build -t nebula-mnemosina:local .
+
+.PHONY: compose-up
+compose-up:
+	$(COMPOSE) up --build
