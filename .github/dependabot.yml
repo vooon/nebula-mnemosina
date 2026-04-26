@@ -8,9 +8,7 @@ updates:
       time: "04:00"
       timezone: "Europe/Belgrade"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "go"
+    labels: []
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -20,9 +18,7 @@ updates:
       time: "04:15"
       timezone: "Europe/Belgrade"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "github-actions"
+    labels: []
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -32,9 +28,7 @@ updates:
       time: "04:30"
       timezone: "Europe/Belgrade"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
+    labels: []
 
   - package-ecosystem: "docker-compose"
     directory: "/"
@@ -44,6 +38,4 @@ updates:
       time: "04:45"
       timezone: "Europe/Belgrade"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
+    labels: []
