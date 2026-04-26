@@ -33,6 +33,7 @@ internal/telemetry/     OpenTelemetry setup
 internal/db/            sqlc-generated code; do not edit manually
 db/queries/             sqlc SQL queries
 db/migrations/          Tern migrations: core, optional timescale, views
+tests/e2e/              Optional Kubernetes E2E test and manifests
 docker/rootfs/data/     Seed directory copied into scratch images
 ```
 
@@ -96,6 +97,14 @@ CGO_ENABLED=0 go test ./...
 golangci-lint run ./...
 go test -race -coverprofile=coverage.out ./...
 goreleaser check
+```
+
+E2E tests are opt-in and require Kubernetes tooling:
+
+```bash
+make e2e
+make e2e-current
+make e2e-redeploy
 ```
 
 For container changes, verify with Podman when available:

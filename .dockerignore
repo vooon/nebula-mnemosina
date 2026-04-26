@@ -1,0 +1,5 @@
+.git
+bin/
+dist/
+secrets/
+tests/e2e/generated/

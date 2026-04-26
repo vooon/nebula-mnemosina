@@ -2,6 +2,14 @@ GOCACHE ?= /tmp/nebula-mnemosina-gocache
 CGO_ENABLED ?= 0
 CONTAINER_TOOL ?= podman
 COMPOSE ?= podman compose
+K3D ?= k3d
+KUBECTL ?= kubectl
+
+E2E_CLUSTER ?= nebula-mnemosina-e2e
+E2E_IMAGE ?= nebula-mnemosina:e2e
+E2E_IMAGE_PULL_POLICY ?= IfNotPresent
+E2E_NAMESPACE ?= nebula-mnemosina-e2e
+E2E_GENERATED ?= tests/e2e/generated
 
 .PHONY: generate
 generate:
@@ -26,3 +34,68 @@ image-build:
 .PHONY: compose-up
 compose-up:
 	$(COMPOSE) up --build
+
+.PHONY: e2e-fixtures
+e2e-fixtures:
+	tests/e2e/scripts/generate-fixtures.sh
+
+.PHONY: e2e-cluster
+e2e-cluster:
+	$(K3D) cluster create $(E2E_CLUSTER) --wait
+
+.PHONY: e2e-image-build
+e2e-image-build:
+	$(CONTAINER_TOOL) build -t $(E2E_IMAGE) .
+
+.PHONY: e2e-image-push
+e2e-image-push: e2e-image-build
+	$(CONTAINER_TOOL) push $(E2E_IMAGE)
+
+.PHONY: e2e-build
+e2e-build: e2e-image-build
+	mkdir -p $(E2E_GENERATED)
+	$(CONTAINER_TOOL) save $(E2E_IMAGE) -o $(E2E_GENERATED)/nebula-mnemosina-image.tar
+	$(K3D) image import $(E2E_GENERATED)/nebula-mnemosina-image.tar -c $(E2E_CLUSTER)
+
+.PHONY: e2e-deploy
+e2e-deploy: e2e-fixtures
+	$(KUBECTL) apply -f tests/e2e/manifests/namespace.yaml
+	$(KUBECTL) wait --for=jsonpath='{.status.phase}'=Active namespace/$(E2E_NAMESPACE) --timeout=60s
+	$(KUBECTL) -n $(E2E_NAMESPACE) delete pod,service -l app=nebula --ignore-not-found
+	$(KUBECTL) -n $(E2E_NAMESPACE) create secret generic nebula-pki --from-file=ca.crt=$(E2E_GENERATED)/ca.crt --from-file=lh1.crt=$(E2E_GENERATED)/lh1.crt --from-file=lh1.key=$(E2E_GENERATED)/lh1.key --from-file=lh2.crt=$(E2E_GENERATED)/lh2.crt --from-file=lh2.key=$(E2E_GENERATED)/lh2.key --from-file=peer1.crt=$(E2E_GENERATED)/peer1.crt --from-file=peer1.key=$(E2E_GENERATED)/peer1.key --from-file=peer2.crt=$(E2E_GENERATED)/peer2.crt --from-file=peer2.key=$(E2E_GENERATED)/peer2.key --from-file=peer3.crt=$(E2E_GENERATED)/peer3.crt --from-file=peer3.key=$(E2E_GENERATED)/peer3.key --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) -n $(E2E_NAMESPACE) create secret generic nebula-ssh --from-file=ssh_client_key=$(E2E_GENERATED)/ssh_client_key --from-file=ssh_host_ed25519_key=$(E2E_GENERATED)/ssh_host_ed25519_key --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) -n $(E2E_NAMESPACE) create configmap nebula-config --from-file=lh1.yml=$(E2E_GENERATED)/lh1.yml --from-file=lh2.yml=$(E2E_GENERATED)/lh2.yml --from-file=peer1.yml=$(E2E_GENERATED)/peer1.yml --from-file=peer2.yml=$(E2E_GENERATED)/peer2.yml --from-file=peer3.yml=$(E2E_GENERATED)/peer3.yml --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) apply -f tests/e2e/manifests/postgres.yaml
+	$(KUBECTL) apply -f tests/e2e/manifests/nebula.yaml
+	$(KUBECTL) apply -f tests/e2e/manifests/nebula-mnemosina.yaml
+	$(KUBECTL) -n $(E2E_NAMESPACE) set image deployment/nebula-mnemosina nebula-mnemosina=$(E2E_IMAGE)
+	$(KUBECTL) -n $(E2E_NAMESPACE) patch deployment/nebula-mnemosina -p '{"spec":{"template":{"spec":{"containers":[{"name":"nebula-mnemosina","imagePullPolicy":"$(E2E_IMAGE_PULL_POLICY)"}]}}}}'
+	$(KUBECTL) -n $(E2E_NAMESPACE) rollout restart deployment/nebula-mnemosina
+	$(KUBECTL) -n $(E2E_NAMESPACE) rollout status deployment/nebula-mnemosina --timeout=120s
+	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=postgres --timeout=120s
+	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=nebula --timeout=120s
+	$(KUBECTL) -n $(E2E_NAMESPACE) wait --for=condition=Ready pod -l app=nebula-mnemosina --timeout=120s
+
+.PHONY: e2e-test
+e2e-test:
+	GOCACHE=$(GOCACHE) go test -tags=e2e -v -timeout=5m -count=1 ./tests/e2e/...
+
+.PHONY: e2e-undeploy
+e2e-undeploy:
+	$(KUBECTL) delete namespace $(E2E_NAMESPACE) --ignore-not-found
+
+.PHONY: e2e-clean
+e2e-clean:
+	$(K3D) cluster delete $(E2E_CLUSTER)
+
+.PHONY: e2e
+e2e: e2e-cluster e2e-build e2e-deploy e2e-test
+
+.PHONY: e2e-current
+e2e-current: e2e-deploy e2e-test
+
+.PHONY: e2e-current-push
+e2e-current-push: e2e-image-push e2e-current
+
+.PHONY: e2e-redeploy
+e2e-redeploy: e2e-build e2e-deploy e2e-test

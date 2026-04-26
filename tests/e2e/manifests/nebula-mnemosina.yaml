@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nebula-mnemosina
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula-mnemosina
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nebula-mnemosina
+  template:
+    metadata:
+      labels:
+        app: nebula-mnemosina
+    spec:
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: nebula-mnemosina
+          image: nebula-mnemosina:e2e
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MNEMO_DATABASE_URL
+              value: postgres://nebula_mnemosina:nebula_mnemosina@postgres:5432/nebula_mnemosina?sslmode=disable
+            - name: MNEMO_LIGHTHOUSES
+              value: lh1=nebula@nebula-lh1:4222,lh2=nebula@nebula-lh2:4222
+            - name: MNEMO_SSH_KEY_FILE
+              value: /secrets/ssh_client_key
+            - name: MNEMO_SSH_KNOWN_HOSTS_PATH
+              value: /data/known_hosts
+            - name: MNEMO_SSH_HOST_KEY_MODE
+              value: accept-new
+            - name: MNEMO_POLL_INTERVAL
+              value: 5s
+            - name: MNEMO_POLL_TIMEOUT
+              value: 10s
+            - name: MNEMO_POLL_JITTER
+              value: 0s
+            - name: MNEMO_HTTP_ADDRESS
+              value: :12142
+            - name: MNEMO_LOG_LEVEL
+              value: debug
+          ports:
+            - containerPort: 12142
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 12142
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 12142
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: ssh
+              mountPath: /secrets/ssh_client_key
+              subPath: ssh_client_key
+              readOnly: true
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: ssh
+          secret:
+            secretName: nebula-ssh
+            defaultMode: 0444
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nebula-mnemosina
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula-mnemosina
+spec:
+  selector:
+    app: nebula-mnemosina
+  ports:
+    - name: http
+      port: 12142
+      targetPort: 12142
+      protocol: TCP

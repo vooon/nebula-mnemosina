@@ -170,5 +170,40 @@ make test
 make build
 ```
 
+## E2E
+
+The opt-in end-to-end test runs PostgreSQL, two Nebula lighthouse pods, three
+Nebula peer pods, and `nebula-mnemosina` in Kubernetes. It is modeled after the
+pathosd k3d workflow and uses generated disposable Nebula PKI/SSH fixtures.
+
+```bash
+make e2e
+```
+
+That path creates a disposable k3d/k3s cluster. To use the cluster from the
+current kubeconfig, point `E2E_IMAGE` at an image that cluster can pull:
+
+```bash
+E2E_IMAGE=registry.example/nebula-mnemosina:e2e make e2e-current
+```
+
+If the target registry is already configured, `make e2e-current-push` builds,
+pushes, deploys, and tests against the current kubeconfig.
+For mutable tags, add `E2E_IMAGE_PULL_POLICY=Always`.
+
+Step-by-step k3d flow:
+
+```bash
+make e2e-cluster
+make e2e-build
+make e2e-deploy
+make e2e-test
+```
+
+For the edit/retry loop against an existing cluster, use `make e2e-redeploy`.
+
+`make e2e-fixtures` generates files under `tests/e2e/generated/`; that
+directory is ignored by git.
+
 Releases are handled by GoReleaser on `v*` tags and publish multi-arch
 container images to GHCR.

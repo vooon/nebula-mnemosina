@@ -39,3 +39,4 @@ dist/
 secrets/
 *.pem
 *.key
+tests/e2e/generated/

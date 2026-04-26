@@ -1,0 +1,338 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nebula-lh1
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: lighthouse
+    node: lh1
+spec:
+  containers:
+    - name: nebula
+      image: nebulaoss/nebula:1.10.3
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 4222
+          name: ssh
+        - containerPort: 4242
+          name: nebula
+          protocol: UDP
+        - containerPort: 4280
+          name: stats
+      readinessProbe:
+        tcpSocket:
+          port: 4222
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        timeoutSeconds: 1
+        failureThreshold: 30
+      volumeMounts:
+        - name: pki
+          mountPath: /config/ca.crt
+          subPath: ca.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/lh1.crt
+          subPath: lh1.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/lh1.key
+          subPath: lh1.key
+          readOnly: true
+        - name: ssh
+          mountPath: /config/ssh_host_ed25519_key
+          subPath: ssh_host_ed25519_key
+          readOnly: true
+        - name: config
+          mountPath: /config/config.yml
+          subPath: lh1.yml
+          readOnly: true
+  volumes:
+    - name: pki
+      secret:
+        secretName: nebula-pki
+        defaultMode: 0400
+    - name: ssh
+      secret:
+        secretName: nebula-ssh
+        defaultMode: 0400
+    - name: config
+      configMap:
+        name: nebula-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nebula-lh1
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: lighthouse
+    node: lh1
+spec:
+  selector:
+    app: nebula
+    node: lh1
+  ports:
+    - name: ssh
+      port: 4222
+      targetPort: 4222
+      protocol: TCP
+    - name: nebula
+      port: 4242
+      targetPort: 4242
+      protocol: UDP
+    - name: stats
+      port: 4280
+      targetPort: 4280
+      protocol: TCP
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nebula-lh2
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: lighthouse
+    node: lh2
+spec:
+  containers:
+    - name: nebula
+      image: nebulaoss/nebula:1.10.3
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 4222
+          name: ssh
+        - containerPort: 4242
+          name: nebula
+          protocol: UDP
+        - containerPort: 4280
+          name: stats
+      readinessProbe:
+        tcpSocket:
+          port: 4222
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        timeoutSeconds: 1
+        failureThreshold: 30
+      volumeMounts:
+        - name: pki
+          mountPath: /config/ca.crt
+          subPath: ca.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/lh2.crt
+          subPath: lh2.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/lh2.key
+          subPath: lh2.key
+          readOnly: true
+        - name: ssh
+          mountPath: /config/ssh_host_ed25519_key
+          subPath: ssh_host_ed25519_key
+          readOnly: true
+        - name: config
+          mountPath: /config/config.yml
+          subPath: lh2.yml
+          readOnly: true
+  volumes:
+    - name: pki
+      secret:
+        secretName: nebula-pki
+        defaultMode: 0400
+    - name: ssh
+      secret:
+        secretName: nebula-ssh
+        defaultMode: 0400
+    - name: config
+      configMap:
+        name: nebula-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nebula-lh2
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: lighthouse
+    node: lh2
+spec:
+  selector:
+    app: nebula
+    node: lh2
+  ports:
+    - name: ssh
+      port: 4222
+      targetPort: 4222
+      protocol: TCP
+    - name: nebula
+      port: 4242
+      targetPort: 4242
+      protocol: UDP
+    - name: stats
+      port: 4280
+      targetPort: 4280
+      protocol: TCP
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nebula-peer1
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: peer
+    node: peer1
+spec:
+  containers:
+    - name: nebula
+      image: nebulaoss/nebula:1.10.3
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 4242
+          name: nebula
+          protocol: UDP
+        - containerPort: 4280
+          name: stats
+      readinessProbe:
+        tcpSocket:
+          port: 4280
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        timeoutSeconds: 1
+        failureThreshold: 30
+      volumeMounts:
+        - name: pki
+          mountPath: /config/ca.crt
+          subPath: ca.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/peer1.crt
+          subPath: peer1.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/peer1.key
+          subPath: peer1.key
+          readOnly: true
+        - name: config
+          mountPath: /config/config.yml
+          subPath: peer1.yml
+          readOnly: true
+  volumes:
+    - name: pki
+      secret:
+        secretName: nebula-pki
+        defaultMode: 0400
+    - name: config
+      configMap:
+        name: nebula-config
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nebula-peer2
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: peer
+    node: peer2
+spec:
+  containers:
+    - name: nebula
+      image: nebulaoss/nebula:1.10.3
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 4242
+          name: nebula
+          protocol: UDP
+        - containerPort: 4280
+          name: stats
+      readinessProbe:
+        tcpSocket:
+          port: 4280
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        timeoutSeconds: 1
+        failureThreshold: 30
+      volumeMounts:
+        - name: pki
+          mountPath: /config/ca.crt
+          subPath: ca.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/peer2.crt
+          subPath: peer2.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/peer2.key
+          subPath: peer2.key
+          readOnly: true
+        - name: config
+          mountPath: /config/config.yml
+          subPath: peer2.yml
+          readOnly: true
+  volumes:
+    - name: pki
+      secret:
+        secretName: nebula-pki
+        defaultMode: 0400
+    - name: config
+      configMap:
+        name: nebula-config
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nebula-peer3
+  namespace: nebula-mnemosina-e2e
+  labels:
+    app: nebula
+    role: peer
+    node: peer3
+spec:
+  containers:
+    - name: nebula
+      image: nebulaoss/nebula:1.10.3
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 4242
+          name: nebula
+          protocol: UDP
+        - containerPort: 4280
+          name: stats
+      readinessProbe:
+        tcpSocket:
+          port: 4280
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        timeoutSeconds: 1
+        failureThreshold: 30
+      volumeMounts:
+        - name: pki
+          mountPath: /config/ca.crt
+          subPath: ca.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/peer3.crt
+          subPath: peer3.crt
+          readOnly: true
+        - name: pki
+          mountPath: /config/peer3.key
+          subPath: peer3.key
+          readOnly: true
+        - name: config
+          mountPath: /config/config.yml
+          subPath: peer3.yml
+          readOnly: true
+  volumes:
+    - name: pki
+      secret:
+        secretName: nebula-pki
+        defaultMode: 0400
+    - name: config
+      configMap:
+        name: nebula-config

@@ -1,0 +1,58 @@
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - initial
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Kubernetes E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: nolar/setup-k3d-k3s@v1
+        with:
+          version: v1.31
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and load nebula-mnemosina image
+        run: |
+          docker build -t nebula-mnemosina:e2e .
+          k3d image import nebula-mnemosina:e2e
+
+      - name: Deploy e2e stack
+        run: make e2e-deploy
+
+      - name: Run e2e tests
+        run: make e2e-test
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl -n nebula-mnemosina-e2e get pods -o wide || true
+          echo "=== Events ==="
+          kubectl -n nebula-mnemosina-e2e get events --sort-by=.lastTimestamp || true
+          echo "=== nebula-mnemosina describe ==="
+          kubectl -n nebula-mnemosina-e2e describe pod -l app=nebula-mnemosina || true
+          echo "=== nebula-mnemosina logs ==="
+          kubectl -n nebula-mnemosina-e2e logs -l app=nebula-mnemosina --all-containers=true --tail=200 || true
+          echo "=== nebula logs ==="
+          kubectl -n nebula-mnemosina-e2e logs -l app=nebula --all-containers=true --tail=100 || true
+          echo "=== postgres logs ==="
+          kubectl -n nebula-mnemosina-e2e logs -l app=postgres --all-containers=true --tail=100 || true
