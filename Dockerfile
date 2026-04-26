@@ -1,7 +1,6 @@
 FROM golang:1.26-alpine AS build
 
 WORKDIR /src
-RUN apk add --no-cache ca-certificates
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -9,12 +8,12 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/nebula-mnemosina ./cmd/nebula-mnemosina
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM scratch
 
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /out/nebula-mnemosina /usr/local/bin/nebula-mnemosina
-COPY --chown=nonroot:nonroot docker/rootfs/data /data
+COPY --chown=65532:65532 docker/rootfs/data /data
 
+USER 65532:65532
 VOLUME ["/data"]
 EXPOSE 8080
 
