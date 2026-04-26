@@ -59,16 +59,19 @@ persisted, but changed keys fail future polls. Drop the
 
 Common environment variables:
 
+Kong derives environment variable names from flags with the `MNEMO_` prefix.
+For example, `--ssh-key-file` maps to `MNEMO_SSH_KEY_FILE`.
+
 ```text
-NEBULA_MNEMOSINA_DATABASE_URL=postgres://nebula_mnemosina:nebula_mnemosina@postgres:5432/nebula_mnemosina?sslmode=disable
-NEBULA_MNEMOSINA_LIGHTHOUSES=lh1=nebula@192.168.110.1:4222,lh2=nebula@192.168.110.2:4222,lh3=nebula@192.168.110.3:4222
-NEBULA_MNEMOSINA_SSH_KEY_FILE=/run/secrets/nebula_ssh_key
-NEBULA_MNEMOSINA_SSH_PRIVATE_KEY=
-NEBULA_MNEMOSINA_SSH_KNOWN_HOSTS_PATH=/data/known_hosts
-NEBULA_MNEMOSINA_SSH_HOST_KEY_MODE=accept-new
-NEBULA_MNEMOSINA_POLL_INTERVAL=30s
-NEBULA_MNEMOSINA_OTEL_ENABLED=false
-NEBULA_MNEMOSINA_OTEL_ENDPOINT=otel-collector:4318
+MNEMO_DATABASE_URL=postgres://nebula_mnemosina:nebula_mnemosina@postgres:5432/nebula_mnemosina?sslmode=disable
+MNEMO_LIGHTHOUSES=lh1=nebula@192.168.110.1:4222,lh2=nebula@192.168.110.2:4222,lh3=nebula@192.168.110.3:4222
+MNEMO_SSH_KEY_FILE=/run/secrets/nebula_ssh_key
+MNEMO_SSH_PRIVATE_KEY=
+MNEMO_SSH_KNOWN_HOSTS_PATH=/data/known_hosts
+MNEMO_SSH_HOST_KEY_MODE=accept-new
+MNEMO_POLL_INTERVAL=30s
+MNEMO_OTEL_ENABLED=false
+MNEMO_OTEL_ENDPOINT=otel-collector:4318
 ```
 
 SSH host key modes:
@@ -110,8 +113,8 @@ mnemo_poll_health_5m
 mnemo_peer_cert_inventory
 ```
 
-When `NEBULA_MNEMOSINA_DATABASE_ENABLE_TIMESCALE=true`, the optional
-TimescaleDB migration set is applied between the core tables and Grafana views.
+When `MNEMO_DATABASE_ENABLE_TIMESCALE=true`, the optional TimescaleDB migration
+set is applied between the core tables and Grafana views.
 
 ## HTTP
 
