@@ -33,7 +33,9 @@ func (s *Store) SavePollResult(ctx context.Context, result model.PollResult) err
 	if err != nil {
 		return fmt.Errorf("begin poll result transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	q := s.queries.WithTx(tx)
 	pollRunID, err := q.CreatePollRun(ctx, db.CreatePollRunParams{

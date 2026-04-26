@@ -59,7 +59,9 @@ func (c *Client) Run(ctx context.Context, lighthouse model.Lighthouse, command s
 		result.Err = fmt.Errorf("dial ssh: %w", err)
 		return result
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	clientConfig := &ssh.ClientConfig{
 		User:            lighthouse.User,
@@ -73,14 +75,18 @@ func (c *Client) Run(ctx context.Context, lighthouse model.Lighthouse, command s
 		return result
 	}
 	client := ssh.NewClient(sshConn, chans, reqs)
-	defer client.Close()
+	defer func() {
+		_ = client.Close()
+	}()
 
 	session, err := client.NewSession()
 	if err != nil {
 		result.Err = fmt.Errorf("open ssh session: %w", err)
 		return result
 	}
-	defer session.Close()
+	defer func() {
+		_ = session.Close()
+	}()
 
 	var output bytes.Buffer
 	session.Stdout = &output
@@ -216,7 +222,9 @@ func appendKnownHost(path, hostname string, key ssh.PublicKey) error {
 	if err != nil {
 		return fmt.Errorf("open known_hosts for append: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	line := knownhosts.Line([]string{hostname}, key)
 	if _, err := file.WriteString(line + "\n"); err != nil {
