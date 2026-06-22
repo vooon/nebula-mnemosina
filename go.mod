@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/charmbracelet/log v1.0.0
-	github.com/jackc/pgx/v5 v5.9.2
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jackc/tern/v2 v2.4.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.68.1
