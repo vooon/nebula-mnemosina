@@ -116,7 +116,26 @@ mnemo_peer_cert_inventory
 ```
 
 When `MNEMO_DATABASE_ENABLE_TIMESCALE=true`, the optional TimescaleDB migration
-set is applied between the core tables and Grafana views.
+set is applied between the core tables and Grafana views. It turns the history
+tables into hypertables with 1-day chunks. Enabling it on a database that
+already has history migrates existing rows into chunks, which temporarily needs
+free disk space.
+
+### Retention
+
+The collector prunes old history on startup and then every
+`--retention-interval` (default `1h`):
+
+| Flag / env | Default | Meaning |
+| --- | --- | --- |
+| `--retention-period` / `MNEMO_RETENTION_PERIOD` | `720h` (30 days) | Delete poll runs and their normalized rows. `0` keeps history forever. |
+| `--retention-raw-period` / `MNEMO_RETENTION_RAW_PERIOD` | `168h` (7 days) | Delete raw SSH command payloads earlier. `0` keeps them for `--retention-period`. |
+| `--retention-interval` / `MNEMO_RETENTION_INTERVAL` | `1h` | Interval between retention runs. |
+
+With TimescaleDB, expired chunks are dropped, which returns disk space
+immediately. On plain PostgreSQL, rows are deleted in batches; autovacuum makes
+the space reusable but does not shrink the files. Run `VACUUM FULL` once if you
+need to reclaim space after the first large prune.
 
 ## HTTP
 
@@ -127,6 +146,21 @@ The collector exposes:
 /readyz
 /metrics
 /prometheus-sd
+```
+
+`/healthz` is a liveness check and answers as soon as the process starts.
+`/readyz` returns `503` until migrations finish and then checks database
+connectivity. For Kubernetes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 12142
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 12142
 ```
 
 Prometheus metrics describe the collector itself. PostgreSQL/TimescaleDB is the
