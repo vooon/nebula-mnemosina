@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/vooon/nebula-mnemosina/internal/config"
 	"github.com/vooon/nebula-mnemosina/internal/httpserver"
 	"github.com/vooon/nebula-mnemosina/internal/migrate"
+	"github.com/vooon/nebula-mnemosina/internal/retention"
 	"github.com/vooon/nebula-mnemosina/internal/sshclient"
 	"github.com/vooon/nebula-mnemosina/internal/storage"
 	"github.com/vooon/nebula-mnemosina/internal/telemetry"
@@ -67,21 +69,30 @@ func run(args []string) error {
 	}
 	defer pool.Close()
 
+	store := storage.New(pool)
+
+	// Serve /healthz while migrations run so a long migration does not trip
+	// the liveness probe; /readyz stays unready until they finish.
+	var ready atomic.Bool
+	if cfg.HTTP.Enabled {
+		httpserver.Start(ctx, cfg.HTTP, cfg.PrometheusSD, cfg.LighthouseTargets, store, &ready, logger)
+	}
+
 	if cfg.Migrate {
 		logger.Info("running database migrations", "timescale", cfg.DatabaseEnableTimescale)
 		if err := migrate.Run(ctx, pool, migrate.Options{EnableTimescale: cfg.DatabaseEnableTimescale}); err != nil {
 			return fmt.Errorf("run migrations: %w", err)
 		}
 	}
-
-	store := storage.New(pool)
-	if cfg.HTTP.Enabled {
-		httpserver.Start(ctx, cfg.HTTP, cfg.PrometheusSD, cfg.LighthouseTargets, store, logger)
-	}
+	ready.Store(true)
 
 	sshRunner, err := sshclient.New(cfg.SSH)
 	if err != nil {
 		return fmt.Errorf("initialize ssh client: %w", err)
+	}
+
+	if !cfg.Once {
+		go retention.New(cfg.Retention, cfg.DatabaseEnableTimescale, store, logger).Run(ctx)
 	}
 
 	service := collector.New(cfg, sshRunner, store, logger)

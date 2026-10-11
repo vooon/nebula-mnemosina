@@ -3,6 +3,7 @@ sql:
   - engine: postgresql
     schema:
       - db/migrations/core/001_schema.sql
+      - db/migrations/core/002_poll_run_fk_indexes.sql
       - db/migrations/views/001_grafana_views.sql
     queries:
       - db/queries

@@ -31,6 +31,21 @@ var (
 		Help:    "Nebula SSH command duration.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"lighthouse", "command"})
+
+	retentionRunsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "nebula_mnemosina_retention_runs_total",
+		Help: "Total retention runs.",
+	}, []string{"success"})
+
+	retentionDeletedRowsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "nebula_mnemosina_retention_deleted_rows_total",
+		Help: "Total rows deleted by retention. Rows removed by cascade are not counted.",
+	}, []string{"table"})
+
+	retentionDroppedChunksTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "nebula_mnemosina_retention_dropped_chunks_total",
+		Help: "Total TimescaleDB chunks dropped by retention.",
+	}, []string{"table"})
 )
 
 func ObservePoll(result model.PollResult) {
@@ -40,4 +55,16 @@ func ObservePoll(result model.PollResult) {
 		commandTotal.WithLabelValues(result.Lighthouse.Name, command.Command, strconv.FormatBool(command.Success())).Inc()
 		commandDuration.WithLabelValues(result.Lighthouse.Name, command.Command).Observe(command.Duration().Seconds())
 	}
+}
+
+func ObserveRetentionRun(success bool) {
+	retentionRunsTotal.WithLabelValues(strconv.FormatBool(success)).Inc()
+}
+
+func ObserveRetentionDeletedRows(table string, rows int64) {
+	retentionDeletedRowsTotal.WithLabelValues(table).Add(float64(rows))
+}
+
+func ObserveRetentionDroppedChunks(table string, chunks int64) {
+	retentionDroppedChunksTotal.WithLabelValues(table).Add(float64(chunks))
 }

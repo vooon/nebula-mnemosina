@@ -30,6 +30,7 @@ type CLI struct {
 	HTTP         HTTPConfig         `embed:"" prefix:"http-"`
 	OTEL         OTELConfig         `embed:"" prefix:"otel-"`
 	PrometheusSD PrometheusSDConfig `embed:"" prefix:"prometheus-sd-"`
+	Retention    RetentionConfig    `embed:"" prefix:"retention-"`
 }
 
 type SSHConfig struct {
@@ -49,6 +50,12 @@ type HTTPConfig struct {
 type PrometheusSDConfig struct {
 	Port        int    `name:"port" default:"4280" help:"Nebula stats HTTP listen port used for discovered lighthouse targets."`
 	MetricsPath string `name:"metrics-path" default:"/metrics" help:"Nebula stats metrics path used by discovered targets."`
+}
+
+type RetentionConfig struct {
+	Period    time.Duration `name:"period" default:"720h" help:"Delete poll history older than this. 0 keeps history forever."`
+	RawPeriod time.Duration `name:"raw-period" default:"168h" help:"Delete raw SSH command payloads older than this. 0 keeps them as long as --retention-period."`
+	Interval  time.Duration `name:"interval" default:"1h" help:"Interval between retention runs."`
 }
 
 type OTELConfig struct {
@@ -94,6 +101,9 @@ func Parse(args []string, version string) (Config, error) {
 		return Config{}, fmt.Errorf("--otel-sample-ratio must be between 0.0 and 1.0")
 	}
 	if err := validatePrometheusSD(cli.PrometheusSD); err != nil {
+		return Config{}, err
+	}
+	if err := validateRetention(cli.Retention); err != nil {
 		return Config{}, err
 	}
 
@@ -157,6 +167,19 @@ func validatePrometheusSD(cfg PrometheusSDConfig) error {
 	}
 	if !strings.HasPrefix(cfg.MetricsPath, "/") {
 		return fmt.Errorf("--prometheus-sd-metrics-path must start with /")
+	}
+	return nil
+}
+
+func validateRetention(cfg RetentionConfig) error {
+	if cfg.Period < 0 {
+		return fmt.Errorf("--retention-period must not be negative")
+	}
+	if cfg.RawPeriod < 0 {
+		return fmt.Errorf("--retention-raw-period must not be negative")
+	}
+	if (cfg.Period > 0 || cfg.RawPeriod > 0) && cfg.Interval <= 0 {
+		return fmt.Errorf("--retention-interval must be positive when retention is enabled")
 	}
 	return nil
 }

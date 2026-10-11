@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 func TestParseLighthouses(t *testing.T) {
@@ -157,4 +158,35 @@ func unsetEnv(t *testing.T, key string) {
 		}
 		_ = os.Setenv(key, oldValue)
 	})
+}
+
+func TestParseRetentionDefaults(t *testing.T) {
+	t.Setenv("MNEMO_DATABASE_URL", "postgres://example")
+	t.Setenv("MNEMO_LIGHTHOUSES", "lh=nebula@192.168.110.1:4222")
+	t.Setenv("MNEMO_SSH_KEY_FILE", "/run/secrets/key")
+
+	cfg, err := Parse(nil, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Retention.Period != 30*24*time.Hour {
+		t.Fatalf("unexpected retention period: %s", cfg.Retention.Period)
+	}
+	if cfg.Retention.RawPeriod != 7*24*time.Hour {
+		t.Fatalf("unexpected raw retention period: %s", cfg.Retention.RawPeriod)
+	}
+	if cfg.Retention.Interval != time.Hour {
+		t.Fatalf("unexpected retention interval: %s", cfg.Retention.Interval)
+	}
+}
+
+func TestParseRetentionRejectsNegativePeriod(t *testing.T) {
+	t.Setenv("MNEMO_DATABASE_URL", "postgres://example")
+	t.Setenv("MNEMO_LIGHTHOUSES", "lh=nebula@192.168.110.1:4222")
+	t.Setenv("MNEMO_SSH_KEY_FILE", "/run/secrets/key")
+	t.Setenv("MNEMO_RETENTION_PERIOD", "-1h")
+
+	if _, err := Parse(nil, "test"); err == nil {
+		t.Fatal("expected negative retention period to fail")
+	}
 }

@@ -11,10 +11,13 @@ import (
 type Querier interface {
 	CompletePollRun(ctx context.Context, arg CompletePollRunParams) error
 	CreatePollRun(ctx context.Context, arg CreatePollRunParams) (int64, error)
+	DeleteExpiredRawCommandPayloads(ctx context.Context, arg DeleteExpiredRawCommandPayloadsParams) (int64, error)
+	DeletePollRuns(ctx context.Context, ids []int64) (int64, error)
 	InsertHostmapEntry(ctx context.Context, arg InsertHostmapEntryParams) error
 	InsertLighthouseAddrmapEntry(ctx context.Context, arg InsertLighthouseAddrmapEntryParams) error
 	InsertRawCommandPayload(ctx context.Context, arg InsertRawCommandPayloadParams) error
 	InsertRelaySnapshot(ctx context.Context, arg InsertRelaySnapshotParams) error
+	ListExpiredPollRunIDs(ctx context.Context, arg ListExpiredPollRunIDsParams) ([]int64, error)
 	ListPresentHostmapPeers(ctx context.Context) ([]ListPresentHostmapPeersRow, error)
 }
 

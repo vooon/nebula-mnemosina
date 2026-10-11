@@ -118,6 +118,51 @@ func (s *Store) RefreshGrafanaViews(ctx context.Context) error {
 	return nil
 }
 
+// DropChunks drops TimescaleDB chunks of table that only hold rows older than cutoff.
+func (s *Store) DropChunks(ctx context.Context, table string, cutoff time.Time) (int64, error) {
+	var dropped int64
+	err := s.pool.QueryRow(ctx,
+		"SELECT count(*) FROM drop_chunks($1::regclass, older_than => $2::timestamptz)",
+		table, cutoff.UTC(),
+	).Scan(&dropped)
+	if err != nil {
+		return 0, fmt.Errorf("drop %s chunks: %w", table, err)
+	}
+	return dropped, nil
+}
+
+// DeleteExpiredPollRuns deletes up to batchSize poll runs started before cutoff.
+// Child rows are removed by ON DELETE CASCADE.
+func (s *Store) DeleteExpiredPollRuns(ctx context.Context, cutoff time.Time, batchSize int32) (int64, error) {
+	ids, err := s.queries.ListExpiredPollRunIDs(ctx, db.ListExpiredPollRunIDsParams{
+		StartedAt: timestamptz(cutoff),
+		Limit:     batchSize,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("list expired poll runs: %w", err)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	deleted, err := s.queries.DeletePollRuns(ctx, ids)
+	if err != nil {
+		return 0, fmt.Errorf("delete expired poll runs: %w", err)
+	}
+	return deleted, nil
+}
+
+// DeleteExpiredRawCommandPayloads deletes up to batchSize raw payloads observed before cutoff.
+func (s *Store) DeleteExpiredRawCommandPayloads(ctx context.Context, cutoff time.Time, batchSize int32) (int64, error) {
+	deleted, err := s.queries.DeleteExpiredRawCommandPayloads(ctx, db.DeleteExpiredRawCommandPayloadsParams{
+		Cutoff:    timestamptz(cutoff),
+		BatchSize: batchSize,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("delete expired raw command payloads: %w", err)
+	}
+	return deleted, nil
+}
+
 func (s *Store) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
